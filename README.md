@@ -53,9 +53,9 @@ mkl-ext:marklogic-query-invoke(
 );</pre>
 
 
-### Additionnal information
+### Additional information
 
-You can supply 2 additionnal parameters:
+You can supply 2 additional parameters:
 
 - <tt>&lt;database&gt;database name&lt;/database&gt;</tt> : alternative database name, if not using the one associated with the HTTP server.
 - <tt>&lt;authentication&gt;authentication method&lt;/authentication&gt;</tt> : authentication method. Authorized values: "digest", "basic" (default).
