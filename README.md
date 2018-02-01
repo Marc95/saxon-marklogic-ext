@@ -1,20 +1,25 @@
 # saxon-marklogic-ext
 
 
-This is an extension function for Saxon allowing XQueries to be sent to MarkLogic Server.
+Extension functions for Saxon allowing XQueries to be sent to MarkLogic Server.
 
 
-The extension may be registered:
-* through <tt>configuration.registerExtensionFunction(new MarkLogicQuery());</tt>
-* via Saxon Configuration file (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon documentation</a>).
+The extensions may be registered:
+* in a Java program, by calling Saxon method <tt>registerExtensionFunction()</tt> and supplying the extension classes - for instance: <tt>configuration.registerExtensionFunction(new MarkLogicQuery());</tt>
+* through a Saxon Configuration file (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon documentation</a>).
 
 
-It is also a <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> service. It just has to be in the classpath to be used with gaulois-pipe.
+They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> services. The jar just has to be in the classpath for the functions to be used with gaulois-pipe.
 
 
-Usage:
+## Usage
 
-<pre>declare namespace els-ext = 'fr:askjadev:xml:extfunctions';
+
+### Send the XQuery as a string
+
+Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
+
+<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
 mkl-ext:marklogic-query(
   "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
   &lt;marklogic&gt;&lt;server&gt;host&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;&lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
@@ -22,12 +27,33 @@ mkl-ext:marklogic-query(
 
 
 Or the alternative "<tt>xs:string+</tt> signature":
-<pre>declare namespace els-ext = 'fr:askjadev:xml:extfunctions';
+<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
 mkl-ext:marklogic-query(
   "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
   "host", "8999", "user", "password"
 );</pre>
 
+
+### Invoke a XQuery module already deployed on MarkLogic Server
+
+Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
+
+<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
+mkl-ext:marklogic-query-invoke(
+  "module.xqy",
+  &lt;marklogic&gt;&lt;server&gt;host&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;&lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
+);</pre>
+
+
+Or the alternative "<tt>xs:string+</tt> signature":
+<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
+mkl-ext:marklogic-query-invoke(
+  "module.xqy",
+  "host", "8999", "user", "password"
+);</pre>
+
+
+### Additionnal information
 
 You can supply 2 additionnal parameters:
 
@@ -40,12 +66,7 @@ When using the alternative "<tt>xs:string+</tt> signature", <tt>$database</tt> a
 /!\ The query must return a valid XML document (or a sequence of XML documents). If you need to return an atomic value, wrap it in a dummy XML element.
 
 
-Many thanks to Christophe Marchand for the base code!
-
-Go there for a BaseX similar extension function: <a href="https://github.com/cmarchand/xpath-basex-ext">https://github.com/cmarchand/xpath-basex-ext</a>.
-
-
-## Current version: 1.0.3
+## Current version: 1.0.4
 
 Maven support:
 
@@ -53,7 +74,7 @@ Maven support:
 &lt;dependency&gt;
   &lt;groupId&gt;fr.askjadev.xml.extfunctions&lt;/groupId&gt;
   &lt;artifactId&gt;marklogic&lt;/artifactId&gt;
-  &lt;version&gt;1.0.3&lt;/version&gt;
+  &lt;version&gt;1.0.4&lt;/version&gt;
 &lt;/dependency&gt;
 </pre>
 
@@ -76,8 +97,9 @@ Please note that you need to deactivate the tests using the parameter `-DskipTes
 The tests require a running MarkLogic Server instance. By default, they are run under the following MarkLogic Server configuration:
 
 * MarkLogic Server runs on `localhost`.
-* There is a `Documents` database associated with a HTTP Server on port `8000`.
+* There is a `Test` database associated with a HTTP Server on port `8004`.
 * Username/password are `admin`/`admin`.
+* User needs to be rest-admin in MarkLogic.
 * The HTTP Server authentication scheme is `basic`.
 
 If you wish to change this behaviour, you can add additional parameters to the test command-line which values will be used instead of the default ones.
@@ -85,8 +107,15 @@ If you wish to change this behaviour, you can add additional parameters to the t
 |Parameter|Default values|Usage|Description|
 |----|----|----|----|
 |testServer|localhost|`-DtestServer=10.11.12.90`|The server on which to run the tests.|
-|testPort|8000|`-DtestPort=8999`|The port to use to talk to the HTTP Server.|
+|testPort|8004|`-DtestPort=8999`|The port to use to talk to the HTTP Server.|
 |testUser|admin|`-DtestUser=myUser`|An authorised user.|
 |testPassword|admin|`-DtestPassword=myPassword`|The user password.|
-|testDatabase|Documents|`-DtestDatabase=myDb`|The HTTP Server default database name.|
+|testDatabase|Test|`-DtestDatabase=myDb`|The HTTP Server default database name.|
 |testAuthentication|basic|`-DtestAuthentication=digest`|The HTTP Server authentication scheme.<br>Authorized values: `basic` or `digest`.|
+
+
+## Thanks
+
+Many thanks to Christophe Marchand for the base code!
+
+Go there for a BaseX similar extension function: <a href="https://github.com/cmarchand/xpath-basex-ext">https://github.com/cmarchand/xpath-basex-ext</a>.

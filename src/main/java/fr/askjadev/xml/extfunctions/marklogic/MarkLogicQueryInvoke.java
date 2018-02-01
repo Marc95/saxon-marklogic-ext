@@ -46,13 +46,13 @@ import net.sf.saxon.trans.XPathException;
  * documentation</a>). In gaulois-pipe, it just has to be in the classpath.
  *
  * Use as :
- * <tt>declare namespace els-ext = 'fr:askjadev:xml:extfunctions';
+ * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
  * mkl-ext:marklogic-query-invoke("module.xqy",&lt;marklogic&gt;
  * &lt;server&gt;localhost&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;
  * &lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
  * );</tt>
  * Or :
- * <tt>declare namespace els-ext = 'fr:askjadev:xml:extfunctions';
+ * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
  * mkl-ext:marklogic-query-invoke("module.xqy", "localhost", "8999", "user", "password");</tt>
  *
  * @author Emmanuel Tourdot

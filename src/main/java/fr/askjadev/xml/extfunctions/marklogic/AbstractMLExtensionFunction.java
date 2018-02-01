@@ -187,4 +187,5 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                         + "or ($query as xs:string, $server as xs:string, $port as xs:string, $user as xs:string, $password as xs:string, $database as xs:string, $authentication as xs:string).");
         }
     }
+	
 }

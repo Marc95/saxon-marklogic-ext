@@ -46,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * Query invoke test
- * NB: user need to be rest-admin in MarkLogic
+ * NB: user needs to be rest-admin in MarkLogic
  *
  * @author etourdot
  */

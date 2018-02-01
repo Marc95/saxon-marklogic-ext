@@ -4,12 +4,12 @@
   
   <groupId>fr.askjadev.xml.extfunctions</groupId>
   <artifactId>marklogic</artifactId>
-  <version>1.0.4-SNAPSHOT</version>
+  <version>1.0.4</version>
   <packaging>jar</packaging>
 
-  <name>Marklogic extension function</name>
+  <name>Marklogic extension functions</name>
   <url>https://github.com/AxelCourt/saxon-marklogic-ext</url>
-  <description>An extension function to send XQueries to MarkLogicServer from Saxon.</description>
+  <description>Extension functions to send XQueries to MarkLogicServer from Saxon.</description>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -74,4 +74,5 @@ class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseable {
     public int getProperties() {
         return 0;
     }
+	
 }
