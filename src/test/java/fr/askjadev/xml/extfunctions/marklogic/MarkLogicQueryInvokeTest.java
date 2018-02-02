@@ -37,42 +37,37 @@ import net.sf.saxon.trans.XPathException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import javax.xml.transform.stream.StreamSource;
-import java.io.ByteArrayInputStream;
-import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Query invoke test
- * NB: user needs to be rest-admin in MarkLogic
+ * Query invoke test NB: user needs to be rest-admin in MarkLogic
  *
- * @author etourdot
+ * @author Emmanuel Tourdot
  */
 public class MarkLogicQueryInvokeTest {
 
-    DatabaseClient client;
-    ExtensionLibrariesManager librariesManager;
-    String server;
-    String port;
-    String user;
-    String password;
+    private HashMap<XdmAtomicValue, XdmAtomicValue> CONNECT;
+    private DatabaseClient client;
+    private ExtensionLibrariesManager librariesManager;
 
     @Before
     public void setup() {
-        server = System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer");
-        port = System.getProperty("testPort") == null ? "8004" : System.getProperty("testPort");
-        user = System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser");
-        password = System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword");
+        String server = System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer");
+        Integer port = System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"));
+        String user = System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser");
+        String password = System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword");
+        CONNECT = new HashMap<>();
+        CONNECT.put(new XdmAtomicValue("server"), new XdmAtomicValue(server));
+        CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue(port));
+        CONNECT.put(new XdmAtomicValue("user"), new XdmAtomicValue(user));
+        CONNECT.put(new XdmAtomicValue("password"), new XdmAtomicValue(password));
         ExtensionLibraryDescriptor moduleDescriptor = new ExtensionLibraryDescriptor();
         moduleDescriptor.setPath("/ext/test/evaltest.xqy");
-
-        client = DatabaseClientFactory.newClient(server, Integer.parseInt(port),
-                new DatabaseClientFactory.BasicAuthContext(user, password));
+        client = DatabaseClientFactory.newClient(server, port, new DatabaseClientFactory.BasicAuthContext(user, password));
         librariesManager = client.newServerConfigManager().newExtensionLibrariesManager();
-        InputStreamHandle xquery = new InputStreamHandle(
-                this.getClass().getClassLoader().getResourceAsStream("evaltest.xqy"));
+        InputStreamHandle xquery = new InputStreamHandle(this.getClass().getClassLoader().getResourceAsStream("evaltest.xqy"));
         xquery.setFormat(Format.TEXT);
         librariesManager.write(moduleDescriptor, xquery);
     }
@@ -93,13 +88,11 @@ public class MarkLogicQueryInvokeTest {
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX, MarkLogicQueryInvoke.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                    MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME +
-                            "('/ext/test/evaltest.xqy', '"+server+"', '"+port+"','"+user+"','"+password+"')")
-                    .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
+            QName var = new QName("config");
+            xpc.declareVariable(var);
+            XPathSelector xp = xpc.compile(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME + "('/ext/test/evaltest.xqy', $config)").load();
+            XdmMap xqConfig = new XdmMap(CONNECT);
+            xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();
             SequenceIterator it = result.getUnderlyingValue().iterate();
             Item item = it.next();
@@ -108,9 +101,6 @@ public class MarkLogicQueryInvokeTest {
         }
         catch (SaxonApiException | XPathException ex) {
             throw ex;
-        }
-        catch (UnsupportedEncodingException ex) {
-            // Do nothing, it will never happen.
         }
     }
 

@@ -49,10 +49,10 @@ import net.sf.saxon.om.StructuredQName;
  *
  * @author Axel Court
  */
-public class MarkLogicQuery extends AbstractMLExtensionFunction {
+public class MarkLogicQueryURI extends AbstractMLExtensionFunction {
 
     public static final String EXT_NAMESPACE_URI = "fr:askjadev:xml:extfunctions";
-    public static final String FUNCTION_NAME = "marklogic-query";
+    public static final String FUNCTION_NAME = "marklogic-query-uri";
     public static final String EXT_NS_COMMON_PREFIX = "mkl-ext";
 
     @Override
@@ -62,7 +62,7 @@ public class MarkLogicQuery extends AbstractMLExtensionFunction {
 
     @Override
     public ExtensionFunctionCall makeCallExpression() {
-        return constructExtensionFunctionCall(ExtentionType.XQUERY_STRING);
+        return constructExtensionFunctionCall(ExtentionType.XQUERY_URI);
     }
 
 }

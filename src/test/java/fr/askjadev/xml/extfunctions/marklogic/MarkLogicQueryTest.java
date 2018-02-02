@@ -23,25 +23,21 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic;
 
-import java.io.ByteArrayInputStream;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
-import javax.xml.transform.stream.StreamSource;
-import net.sf.saxon.trans.XPathException;
+import java.util.HashMap;
 import net.sf.saxon.Configuration;
+import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
-import net.sf.saxon.s9api.Axis;
-import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.XPathCompiler;
 import net.sf.saxon.s9api.XPathSelector;
-import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmAtomicValue;
+import net.sf.saxon.s9api.XdmMap;
 import net.sf.saxon.s9api.XdmValue;
+import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.SequenceType;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -56,28 +52,17 @@ import static org.junit.Assert.*;
  */
 public class MarkLogicQueryTest {
     
-    private final List<String> CONNECT;
-    private final String CONNECT_ELT;
+    private final HashMap<XdmAtomicValue, XdmAtomicValue> CONNECT;
     
     public MarkLogicQueryTest() {
         super();
-        this.CONNECT = new ArrayList();
-        this.CONNECT.add(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer"));
-        this.CONNECT.add(System.getProperty("testPort") == null ? "8004" : System.getProperty("testPort"));
-        this.CONNECT.add(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser"));
-        this.CONNECT.add(System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword"));
-        this.CONNECT.add(System.getProperty("testDatabase") == null ? "Documents" : System.getProperty("testDatabase"));
-        this.CONNECT.add(System.getProperty("testAuthentication") == null ? "basic" : System.getProperty("testAuthentication"));
-        this.CONNECT_ELT =
-            "<?xml version='1.0' encoding='UTF-8'?>" +
-            "<marklogic>" +
-                "<server>" + this.CONNECT.get(0) + "</server>" +
-                "<port>" + this.CONNECT.get(1) + "</port>" +
-                "<user>" + this.CONNECT.get(2) + "</user>" +
-                "<password>" + this.CONNECT.get(3) + "</password>" +
-                "<database>" + this.CONNECT.get(4) + "</database>" +
-                "<authentication>" + this.CONNECT.get(5) + "</authentication>" +
-            "</marklogic>";
+        this.CONNECT = new HashMap<>();
+        this.CONNECT.put(new XdmAtomicValue("server"), new XdmAtomicValue(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer")));
+        this.CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue(System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"))));
+        this.CONNECT.put(new XdmAtomicValue("user"), new XdmAtomicValue(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser")));
+        this.CONNECT.put(new XdmAtomicValue("password"), new XdmAtomicValue(System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword")));
+        this.CONNECT.put(new XdmAtomicValue("database"), new XdmAtomicValue(System.getProperty("testDatabase") == null ? "Test" : System.getProperty("testDatabase")));
+        this.CONNECT.put(new XdmAtomicValue("authentication"), new XdmAtomicValue(System.getProperty("testAuthentication") == null ? "basic" : System.getProperty("testAuthentication")));
     }
     
     @BeforeClass
@@ -113,7 +98,7 @@ public class MarkLogicQueryTest {
     @Test
     public void testGetArgumentTypes() {
         MarkLogicQuery instance = new MarkLogicQuery();
-        SequenceType[] expResult = new SequenceType[] { SequenceType.SINGLE_STRING, SequenceType.SINGLE_ITEM, SequenceType.OPTIONAL_STRING, SequenceType.OPTIONAL_STRING, SequenceType.OPTIONAL_STRING, SequenceType.OPTIONAL_STRING, SequenceType.OPTIONAL_STRING };
+        SequenceType[] expResult = new SequenceType[] { SequenceType.SINGLE_STRING, MapType.OPTIONAL_MAP_ITEM, MapType.OPTIONAL_MAP_ITEM };
         SequenceType[] result = instance.getArgumentTypes();
         assertEquals(expResult.length, result.length);
         for (int i=0; i<expResult.length; i++) {
@@ -138,7 +123,7 @@ public class MarkLogicQueryTest {
     @Test
     public void testGetMaximumNumberOfArguments() {
         MarkLogicQuery instance = new MarkLogicQuery();
-        int expResult = 7;
+        int expResult = 3;
         int result = instance.getMaximumNumberOfArguments();
         assertEquals(expResult, result);
     }
@@ -156,24 +141,21 @@ public class MarkLogicQueryTest {
     }
 
     /**
-     * Test of makeCallExpression method, of class MarkLogicQuery.
+     * Test of makeCallExpression method.
      */
     @Test
-    public void testMakeCallExpression2args() {
+    public void testQueryModule2Args() {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            QName var = new QName("connect");
+            QName var = new QName("config");
             xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>',$connect)").load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream(CONNECT_ELT.getBytes("UTF-8"))));
-            XdmNode connect = (XdmNode) docConnect.axisIterator(Axis.DESCENDANT_OR_SELF,new QName("marklogic")).next();
-            xp.setVariable(var,connect);
-            xp.setContextItem(docConnect);
+            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            XdmMap xqConfig = new XdmMap(CONNECT);
+            xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();
             SequenceIterator it = result.getUnderlyingValue().iterate();
             Item item = it.next();
@@ -184,184 +166,214 @@ public class MarkLogicQueryTest {
             }
             it.close();
         }
-        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
-            ex.printStackTrace(System.err);
+        catch (SaxonApiException | XPathException ex) {
+            System.err.println(ex.getMessage());
             fail(ex.getMessage());
         }
     }
-    @Test
-    public void testMakeCallExpression7args() {
+    
+    @Test(expected = AssertionError.class)
+    public void testQueryModule2Args_WrongParamType() {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
-                "('for $i in 1 to 10 return <test>{$i}</test>', " +
-                "'" + CONNECT.get(0) + "', " +
-                "'" + CONNECT.get(1) + "', " +
-                "'" + CONNECT.get(2) + "', " +
-                "'" + CONNECT.get(3) + "', " +
-                "'" + CONNECT.get(4) + "', " +
-                "'" + CONNECT.get(5) + "')")
-            .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
-            XdmValue result = xp.evaluate();
-            SequenceIterator it = result.getUnderlyingValue().iterate();
-            Item item = it.next();
-            int count = 1;
-            while (item != null) {
-                assertEquals(Integer.toString(count++), item.getStringValue());
-                item = it.next();
-            }
-            it.close();
+            QName var = new QName("config");
+            xpc.declareVariable(var);
+            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue("string"));
+            XdmMap xqConfig = new XdmMap(CONNECT);
+            xp.setVariable(var, xqConfig);
+            xp.evaluate();
         }
-        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
-            ex.printStackTrace(System.err);
-            fail(ex.getMessage()); 
-        }
-    }
-    @Test(expected = SaxonApiException.class)
-    public void testMakeCallExpression3args() throws SaxonApiException, XPathException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
-        try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
-                "('for $i in 1 to 10 return <test>{$i}</test>', " +
-                "'" + CONNECT.get(0) + "', " +
-                "'" + CONNECT.get(1) + "')")
-            .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
-            XdmValue result = xp.evaluate();
-            SequenceIterator it = result.getUnderlyingValue().iterate();
-            Item item = it.next();
-            int count = 1;
-            while (item != null) {
-                assertEquals(Integer.toString(count++), item.getStringValue());
-                item = it.next();
-            }
-            it.close();
-        }
-        catch (SaxonApiException | XPathException ex) {
-            throw ex;
-        }
-        catch (UnsupportedEncodingException ex) {
-            // Do nothing, it will never happen.
-        }
-    }
-    @Test(expected = SaxonApiException.class)
-    public void testMakeCallExpression4args() throws SaxonApiException, XPathException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
-        try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
-                "('for $i in 1 to 10 return <test>{$i}</test>', " +
-                "'" + CONNECT.get(0) + "', " +
-                "'" + CONNECT.get(1) + "', " +
-                "'" + CONNECT.get(2) + "')")
-            .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
-            XdmValue result = xp.evaluate();
-            SequenceIterator it = result.getUnderlyingValue().iterate();
-            Item item = it.next();
-            int count = 1;
-            while (item != null) {
-                assertEquals(Integer.toString(count++), item.getStringValue());
-                item = it.next();
-            }
-            it.close();
-        }
-        catch (SaxonApiException | XPathException ex) {
-            throw ex;
-        }
-        catch (UnsupportedEncodingException ex) {
-            // Do nothing, it will never happen.
-        }
-    }
-    @Test
-    public void testMakeCallExpression5args() {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
-        try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
-                "('for $i in 1 to 10 return <test>{$i}</test>', " +
-                "'" + CONNECT.get(0) + "', " +
-                "'" + CONNECT.get(1) + "', " +
-                "'" + CONNECT.get(2) + "', " +
-                "'" + CONNECT.get(3) + "')")
-            .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
-            XdmValue result = xp.evaluate();
-            SequenceIterator it = result.getUnderlyingValue().iterate();
-            Item item = it.next();
-            int count = 1;
-            while (item != null) {
-                assertEquals(Integer.toString(count++), item.getStringValue());
-                item = it.next();
-            }
-            it.close();
-        }
-        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
-            ex.printStackTrace(System.err);
-            fail(ex.getMessage()); 
-        }
-    }
-    @Test
-    public void testMakeCallExpression6args() {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
-        try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            XPathSelector xp = xpc.compile(
-                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
-                "('for $i in 1 to 10 return <test>{$i}</test>', " +
-                "'" + CONNECT.get(0) + "', " +
-                "'" + CONNECT.get(1) + "', " +
-                "'" + CONNECT.get(2) + "', " +
-                "'" + CONNECT.get(3) + "', " +
-                "'" + CONNECT.get(4) + "')")
-            .load();
-            DocumentBuilder builder = proc.newDocumentBuilder();
-            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
-            xp.setContextItem(docConnect);
-            XdmValue result = xp.evaluate();
-            SequenceIterator it = result.getUnderlyingValue().iterate();
-            Item item = it.next();
-            int count = 1;
-            while (item != null) {
-                assertEquals(Integer.toString(count++), item.getStringValue());
-                item = it.next();
-            }
-            it.close();
-        }
-        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
-            ex.printStackTrace(System.err);
-            fail(ex.getMessage()); 
+        catch (Exception ex) {
+            System.err.println(ex.getMessage());
+            fail(ex.getMessage());
         }
     }
     
+    @Test(expected = AssertionError.class)
+    public void testQueryModule2Args_MissingParam() {
+        Configuration config = new Configuration();
+        config.registerExtensionFunction(new MarkLogicQuery());
+        Processor proc = new Processor(config);
+        XPathCompiler xpc = proc.newXPathCompiler();
+        try {
+            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+            QName var = new QName("config");
+            xpc.declareVariable(var);
+            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            CONNECT.remove(new XdmAtomicValue("server"));
+            XdmMap xqConfig = new XdmMap(CONNECT);
+            xp.setVariable(var, xqConfig);
+            xp.evaluate();
+        }
+        catch (Exception ex) {
+            System.err.println(ex.getMessage());
+            fail(ex.getMessage());
+        }
+    }
+    
+        @Test(expected = AssertionError.class)
+    public void testQueryModule2Args_BadArgument() {
+        Configuration config = new Configuration();
+        config.registerExtensionFunction(new MarkLogicQuery());
+        Processor proc = new Processor(config);
+        XPathCompiler xpc = proc.newXPathCompiler();
+        try {
+            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+            QName var = new QName("config");
+            xpc.declareVariable(var);
+            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            XdmAtomicValue xqConfig = new XdmAtomicValue("string");
+            xp.setVariable(var, xqConfig);
+            xp.evaluate();
+        }
+        catch (Exception ex) {
+            System.err.println(ex.getMessage());
+            fail(ex.getMessage());
+        }
+    }
+
+//    @Test(expected = SaxonApiException.class)
+//    public void testMakeCallExpression3args() throws SaxonApiException, XPathException {
+//        Configuration config = new Configuration();
+//        config.registerExtensionFunction(new MarkLogicQuery());
+//        Processor proc = new Processor(config);
+//        XPathCompiler xpc = proc.newXPathCompiler();
+//        try {
+//            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+//            XPathSelector xp = xpc.compile(
+//                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
+//                "('for $i in 1 to 10 return <test>{$i}</test>', " +
+//                "'" + CONNECT.get(0) + "', " +
+//                "'" + CONNECT.get(1) + "')")
+//            .load();
+//            DocumentBuilder builder = proc.newDocumentBuilder();
+//            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
+//            xp.setContextItem(docConnect);
+//            XdmValue result = xp.evaluate();
+//            SequenceIterator it = result.getUnderlyingValue().iterate();
+//            Item item = it.next();
+//            int count = 1;
+//            while (item != null) {
+//                assertEquals(Integer.toString(count++), item.getStringValue());
+//                item = it.next();
+//            }
+//            it.close();
+//        }
+//        catch (SaxonApiException | XPathException ex) {
+//            throw ex;
+//        }
+//        catch (UnsupportedEncodingException ex) {
+//            // Do nothing, it will never happen.
+//        }
+//    }
+//    @Test(expected = SaxonApiException.class)
+//    public void testMakeCallExpression4args() throws SaxonApiException, XPathException {
+//        Configuration config = new Configuration();
+//        config.registerExtensionFunction(new MarkLogicQuery());
+//        Processor proc = new Processor(config);
+//        XPathCompiler xpc = proc.newXPathCompiler();
+//        try {
+//            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+//            XPathSelector xp = xpc.compile(
+//                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
+//                "('for $i in 1 to 10 return <test>{$i}</test>', " +
+//                "'" + CONNECT.get(0) + "', " +
+//                "'" + CONNECT.get(1) + "', " +
+//                "'" + CONNECT.get(2) + "')")
+//            .load();
+//            DocumentBuilder builder = proc.newDocumentBuilder();
+//            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
+//            xp.setContextItem(docConnect);
+//            XdmValue result = xp.evaluate();
+//            SequenceIterator it = result.getUnderlyingValue().iterate();
+//            Item item = it.next();
+//            int count = 1;
+//            while (item != null) {
+//                assertEquals(Integer.toString(count++), item.getStringValue());
+//                item = it.next();
+//            }
+//            it.close();
+//        }
+//        catch (SaxonApiException | XPathException ex) {
+//            throw ex;
+//        }
+//        catch (UnsupportedEncodingException ex) {
+//            // Do nothing, it will never happen.
+//        }
+//    }
+//    @Test
+//    public void testMakeCallExpression5args() {
+//        Configuration config = new Configuration();
+//        config.registerExtensionFunction(new MarkLogicQuery());
+//        Processor proc = new Processor(config);
+//        XPathCompiler xpc = proc.newXPathCompiler();
+//        try {
+//            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+//            XPathSelector xp = xpc.compile(
+//                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
+//                "('for $i in 1 to 10 return <test>{$i}</test>', " +
+//                "'" + CONNECT.get(0) + "', " +
+//                "'" + CONNECT.get(1) + "', " +
+//                "'" + CONNECT.get(2) + "', " +
+//                "'" + CONNECT.get(3) + "')")
+//            .load();
+//            DocumentBuilder builder = proc.newDocumentBuilder();
+//            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
+//            xp.setContextItem(docConnect);
+//            XdmValue result = xp.evaluate();
+//            SequenceIterator it = result.getUnderlyingValue().iterate();
+//            Item item = it.next();
+//            int count = 1;
+//            while (item != null) {
+//                assertEquals(Integer.toString(count++), item.getStringValue());
+//                item = it.next();
+//            }
+//            it.close();
+//        }
+//        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
+//            ex.printStackTrace(System.err);
+//            fail(ex.getMessage()); 
+//        }
+//    }
+//    @Test
+//    public void testMakeCallExpression6args() {
+//        Configuration config = new Configuration();
+//        config.registerExtensionFunction(new MarkLogicQuery());
+//        Processor proc = new Processor(config);
+//        XPathCompiler xpc = proc.newXPathCompiler();
+//        try {
+//            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
+//            XPathSelector xp = xpc.compile(
+//                MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME +
+//                "('for $i in 1 to 10 return <test>{$i}</test>', " +
+//                "'" + CONNECT.get(0) + "', " +
+//                "'" + CONNECT.get(1) + "', " +
+//                "'" + CONNECT.get(2) + "', " +
+//                "'" + CONNECT.get(3) + "', " +
+//                "'" + CONNECT.get(4) + "')")
+//            .load();
+//            DocumentBuilder builder = proc.newDocumentBuilder();
+//            XdmNode docConnect = builder.build(new StreamSource(new ByteArrayInputStream("<document/>".getBytes("UTF-8"))));
+//            xp.setContextItem(docConnect);
+//            XdmValue result = xp.evaluate();
+//            SequenceIterator it = result.getUnderlyingValue().iterate();
+//            Item item = it.next();
+//            int count = 1;
+//            while (item != null) {
+//                assertEquals(Integer.toString(count++), item.getStringValue());
+//                item = it.next();
+//            }
+//            it.close();
+//        }
+//        catch (SaxonApiException | UnsupportedEncodingException | XPathException ex) {
+//            ex.printStackTrace(System.err);
+//            fail(ex.getMessage()); 
+//        }
+//    }
+
 }
