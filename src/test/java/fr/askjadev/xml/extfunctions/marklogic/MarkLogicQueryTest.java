@@ -23,8 +23,17 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic;
 
+import java.io.StringWriter;
 import java.util.HashMap;
+import javax.xml.transform.Source;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 import net.sf.saxon.Configuration;
+import net.sf.saxon.TransformerFactoryImpl;
+import net.sf.saxon.jaxp.TransformerImpl;
+import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
@@ -142,9 +151,11 @@ public class MarkLogicQueryTest {
 
     /**
      * Test of makeCallExpression method.
+     * @throws net.sf.saxon.trans.XPathException
+     * @throws net.sf.saxon.s9api.SaxonApiException
      */
     @Test
-    public void testQueryModule2Args() {
+    public void testQueryModule2Args() throws XPathException, SaxonApiException {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
@@ -166,14 +177,18 @@ public class MarkLogicQueryTest {
             }
             it.close();
         }
-        catch (SaxonApiException | XPathException ex) {
+        catch (XPathException | SaxonApiException ex) {
             System.err.println(ex.getMessage());
-            fail(ex.getMessage());
+            throw ex;
         }
     }
     
-    @Test(expected = AssertionError.class)
-    public void testQueryModule2Args_WrongParamType() {
+    /**
+     * Test KO / Argument with wrong type inside config map
+     * @throws SaxonApiException
+     */
+    @Test(expected = SaxonApiException.class)
+    public void testQueryModule2Args_WrongParamType() throws SaxonApiException {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
@@ -188,14 +203,18 @@ public class MarkLogicQueryTest {
             xp.setVariable(var, xqConfig);
             xp.evaluate();
         }
-        catch (Exception ex) {
+        catch (SaxonApiException ex) {
             System.err.println(ex.getMessage());
-            fail(ex.getMessage());
+            throw ex;
         }
     }
     
-    @Test(expected = AssertionError.class)
-    public void testQueryModule2Args_MissingParam() {
+    /**
+     * Test KO / Missing mandatory argument inside config map
+     * @throws SaxonApiException
+     */
+    @Test(expected = SaxonApiException.class)
+    public void testQueryModule2Args_MissingParam() throws SaxonApiException {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
@@ -210,14 +229,18 @@ public class MarkLogicQueryTest {
             xp.setVariable(var, xqConfig);
             xp.evaluate();
         }
-        catch (Exception ex) {
+        catch (SaxonApiException ex) {
             System.err.println(ex.getMessage());
-            fail(ex.getMessage());
+            throw ex;
         }
     }
     
-        @Test(expected = AssertionError.class)
-    public void testQueryModule2Args_BadArgument() {
+    /**
+     * Test KO / 2nd argument wrong type
+     * @throws SaxonApiException
+     */
+    @Test(expected = SaxonApiException.class)
+    public void testQueryModule2Args_BadArgument() throws SaxonApiException {
         Configuration config = new Configuration();
         config.registerExtensionFunction(new MarkLogicQuery());
         Processor proc = new Processor(config);
@@ -231,9 +254,36 @@ public class MarkLogicQueryTest {
             xp.setVariable(var, xqConfig);
             xp.evaluate();
         }
-        catch (Exception ex) {
+        catch (SaxonApiException ex) {
             System.err.println(ex.getMessage());
-            fail(ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    /**
+     * Test OK with XSL
+     * @throws XPathException
+     * @throws TransformerConfigurationException
+     */
+    @Test
+    public void testXSL_QueryOK() throws XPathException, TransformerConfigurationException {
+        TransformerFactory factory = TransformerFactory.newInstance();
+        TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
+        net.sf.saxon.Configuration saxonConfig = tFactoryImpl.getConfiguration();
+        Processor processor = (Processor) saxonConfig.getProcessor();
+        ExtensionFunctionDefinition test = new MarkLogicQuery();
+        processor.registerExtensionFunction(test);
+        try {
+            Source xslt = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQueryTest.xsl"));
+            TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
+            transformer.setParameter("config", new XdmMap(CONNECT));
+            Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQueryTest.xml"));
+            StringWriter result = new StringWriter();
+            transformer.transform(text, new StreamResult(result));
+        }
+        catch (XPathException | TransformerConfigurationException ex) {
+            System.err.println(ex.getMessage());
+            throw ex;
         }
     }
 
