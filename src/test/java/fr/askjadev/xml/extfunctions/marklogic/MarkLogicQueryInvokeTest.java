@@ -64,10 +64,10 @@ public class MarkLogicQueryInvokeTest {
         CONNECT.put(new XdmAtomicValue("user"), new XdmAtomicValue(user));
         CONNECT.put(new XdmAtomicValue("password"), new XdmAtomicValue(password));
         ExtensionLibraryDescriptor moduleDescriptor = new ExtensionLibraryDescriptor();
-        moduleDescriptor.setPath("/ext/test/evaltest.xqy");
+        moduleDescriptor.setPath("/ext/test/MarkLogicQueryInvokeTest.xqy");
         client = DatabaseClientFactory.newClient(server, port, new DatabaseClientFactory.BasicAuthContext(user, password));
         librariesManager = client.newServerConfigManager().newExtensionLibrariesManager();
-        InputStreamHandle xquery = new InputStreamHandle(this.getClass().getClassLoader().getResourceAsStream("evaltest.xqy"));
+        InputStreamHandle xquery = new InputStreamHandle(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQueryInvokeTest.xqy"));
         xquery.setFormat(Format.TEXT);
         librariesManager.write(moduleDescriptor, xquery);
     }
@@ -75,7 +75,7 @@ public class MarkLogicQueryInvokeTest {
     @After
     public void tearDown() {
         if (client != null) {
-            librariesManager.delete("/ext/test/evaltest.xqy");
+            librariesManager.delete("/ext/test/MarkLogicQueryInvokeTest.xqy");
             client.release();
         }
     }
@@ -90,7 +90,7 @@ public class MarkLogicQueryInvokeTest {
             xpc.declareNamespace(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX, MarkLogicQueryInvoke.EXT_NAMESPACE_URI);
             QName var = new QName("config");
             xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME + "('/ext/test/evaltest.xqy', $config)").load();
+            XPathSelector xp = xpc.compile(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME + "('/ext/test/MarkLogicQueryInvokeTest.xqy', $config)").load();
             XdmMap xqConfig = new XdmMap(CONNECT);
             xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();

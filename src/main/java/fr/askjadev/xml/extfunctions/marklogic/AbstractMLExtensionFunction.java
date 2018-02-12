@@ -33,10 +33,15 @@ import com.marklogic.client.eval.ServerEvaluationCall;
 import com.marklogic.client.io.Format;
 import com.marklogic.client.io.InputStreamHandle;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Iterator;
+import net.sf.saxon.expr.Expression;
+import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
 import net.sf.saxon.lib.ExtensionFunctionDefinition;
+import net.sf.saxon.lib.StandardUnparsedTextResolver;
 import net.sf.saxon.ma.map.HashTrieMap;
 import net.sf.saxon.ma.map.KeyValuePair;
 import net.sf.saxon.ma.map.MapType;
@@ -47,13 +52,17 @@ import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.IntegerValue;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.StringValue;
+import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.http.client.utils.URIUtils;
 
 /**
  * Abstract class representing a Saxon MarkLogic extension function
  * @author Axel Court + Emmanuel Tourdot
  */
 public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefinition {
-
+    
+    private String staticBaseUri;
+    
     enum ExtentionType {
         XQUERY_URI, XQUERY_STRING, MODULE;
     }
@@ -85,13 +94,13 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
     ExtensionFunctionCall constructExtensionFunctionCall(final ExtentionType type) {
 
         return new ExtensionFunctionCall() {
-
+            
             @Override
-            public Sequence call(XPathContext xpc, Sequence[] sqncs) throws XPathException {
+            public Sequence call(XPathContext xpc, Sequence[] args) throws XPathException {
                 // Check and get the configuration
-                QueryConfiguration config = getConfig(sqncs);
+                QueryConfiguration config = getConfig(args);
                 // Get the XQuery or the module to invoke
-                String moduleOrQuery = getXQueryOrModule(sqncs);
+                String moduleOrQuery = getXQueryOrModule(args);
                 // Launch
                 Processor proc = new Processor(xpc.getConfiguration());
                 DatabaseClient session = null;
@@ -109,7 +118,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                             break;
                         case XQUERY_URI:
                             // Read the XQuery and send it as an InputStreamHandle
-                            InputStreamHandle xquery = getXQueryFromURI(moduleOrQuery);
+                            InputStreamHandle xquery = getXQueryFromURI(xpc, moduleOrQuery);
                             call.xquery(xquery);
                             xquery.close();
                             break;
@@ -121,6 +130,12 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                 catch (FailedRequestException | ForbiddenUserException ex) {
                     throw new XPathException(ex);
                 }
+            }
+            
+            @Override
+            public void supplyStaticContext(StaticContext context, int locationId, Expression[] args) throws XPathException {
+                // Add information about the static context
+                staticBaseUri = context.getStaticBaseURI();
             }
             
         };
@@ -146,10 +161,10 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
         return session;
     }
 
-    private QueryConfiguration getConfig(Sequence[] sqncs) throws XPathException {
+    private QueryConfiguration getConfig(Sequence[] args) throws XPathException {
         QueryConfiguration config = new QueryConfiguration();
         try {
-            HashTrieMap configMap = (HashTrieMap) sqncs[1].head();
+            HashTrieMap configMap = (HashTrieMap) args[1].head();
             Iterator<KeyValuePair> iterator = configMap.iterator();
             while (iterator.hasNext()) {
                 KeyValuePair kv = iterator.next();
@@ -185,22 +200,25 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
         }
     }
     
-    private String getXQueryOrModule(Sequence [] sqncs) throws XPathException {
+    private String getXQueryOrModule(Sequence [] args) throws XPathException {
         // May be a reference to a module, the URI to a local XQuery or a string containing the XQuery
-        String xqueryOrModule = ((StringValue) sqncs[0].head()).getStringValue();
+        String xqueryOrModule = ((StringValue) args[0].head()).getStringValue();
         return xqueryOrModule;
     }
     
-    private InputStreamHandle getXQueryFromURI(String moduleOrQuery) throws XPathException {
-        // TO DO : tester différentes façon de récupérer la ressource
+    private InputStreamHandle getXQueryFromURI(XPathContext xpc, String queryUri) throws XPathException {
         try {
-            InputStreamHandle xquery = new InputStreamHandle(this.getClass().getClassLoader().getResourceAsStream(moduleOrQuery));
+            // Resolve the XQuery URI if it is relative
+            URI queryUriResolved = URIUtils.resolve(new URI(staticBaseUri), queryUri);
+            StandardUnparsedTextResolver unparsedTextResolver = new StandardUnparsedTextResolver();
+            // Get the XQuery content as unparsed text (Reader -> InputStream -> InputStreamHandle)
+            InputStreamHandle xquery = new InputStreamHandle(new ReaderInputStream(unparsedTextResolver.resolve(queryUriResolved, "UTF-8", xpc.getConfiguration()), "UTF-8"));
             xquery.setFormat(Format.TEXT);
             return xquery;
         }
-        catch (Exception ex) {
-            throw new XPathException("Error while trying to load the XQuery file: " + moduleOrQuery + "; see: " + ex.getMessage());
+        catch (URISyntaxException | XPathException ex) {
+            throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
         }
     }
-    
+
 }
