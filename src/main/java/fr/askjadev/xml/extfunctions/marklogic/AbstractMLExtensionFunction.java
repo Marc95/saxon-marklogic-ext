@@ -33,23 +33,20 @@ import com.marklogic.client.eval.ServerEvaluationCall;
 import com.marklogic.client.io.Format;
 import com.marklogic.client.io.InputStreamHandle;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
+import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfigurationFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Iterator;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
 import net.sf.saxon.lib.ExtensionFunctionDefinition;
 import net.sf.saxon.lib.StandardUnparsedTextResolver;
-import net.sf.saxon.ma.map.HashTrieMap;
-import net.sf.saxon.ma.map.KeyValuePair;
 import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.*;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.value.IntegerValue;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.StringValue;
 import org.apache.commons.io.input.ReaderInputStream;
@@ -98,7 +95,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
             @Override
             public Sequence call(XPathContext xpc, Sequence[] args) throws XPathException {
                 // Check and get the configuration
-                QueryConfiguration config = getConfig(args);
+                QueryConfiguration config = new QueryConfigurationFactory().getConfig(args);
                 // Get the XQuery or the module to invoke
                 String moduleOrQuery = getXQueryOrModule(args);
                 // Launch
@@ -159,45 +156,6 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
             session = DatabaseClientFactory.newClient(config.getServer(), config.getPort(), authContext);
         }
         return session;
-    }
-
-    private QueryConfiguration getConfig(Sequence[] args) throws XPathException {
-        QueryConfiguration config = new QueryConfiguration();
-        try {
-            HashTrieMap configMap = (HashTrieMap) args[1].head();
-            Iterator<KeyValuePair> iterator = configMap.iterator();
-            while (iterator.hasNext()) {
-                KeyValuePair kv = iterator.next();
-                String k = kv.key.getStringValue();
-                try {
-                    switch (k) {
-                        case "server":
-                        case "user":
-                        case "password":
-                        case "database":
-                        case "authentication":
-                            config.set(k, kv.value.head().getStringValue());
-                            break;
-                        case "port":
-                            config.set(k, ((IntegerValue) kv.value.head()).asBigInteger().intValue());
-                            break;
-                    }
-                }
-                catch (XPathException | ClassCastException ex) {
-                    throw new XPathException("Some configuration entries are not in the required type; see: " + ex.getMessage());
-                }
-            }
-            if (config.getServer() == null ||
-                config.getUser() == null ||
-                config.getPassword() == null ||
-                config.getPort() == null) {
-                throw new XPathException("Some mandatory configuration values are missing. 'server', 'port', 'user' and 'password' must be specified.");
-            }
-            return config;
-        }
-        catch (ClassCastException ex) {
-            throw new XPathException("The 2nd argument must be an XPath 3.0 map defining the server and query configuration.");
-        }
     }
     
     private String getXQueryOrModule(Sequence [] args) throws XPathException {
