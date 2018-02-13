@@ -33,15 +33,22 @@ import net.sf.saxon.om.StructuredQName;
  * (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon
  * documentation</a>). In gaulois-pipe, it just has to be in the classpath.
  *
+ * The first argument (xs:string) is the path to an XQuery module already deployed on the MarkLogic Server instance.
+ * The second argument is an XPath 3.0 map containing the server and database configuration.
+ * 
  * Use as :
  * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query-invoke("module.xqy",&lt;marklogic&gt;
- * &lt;server&gt;localhost&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;
- * &lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
+ * mkl-ext:marklogic-query(
+ *   "/path/to/module.xqy",
+ *   map{
+ *     "server":"localhost",
+ *     "port":8004,
+ *     "user":"admin",
+ *     "password":"admin",
+ *     "database":"Test",
+ *     "authentication":"basic"
+ *   }
  * );</tt>
- * Or :
- * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query-invoke("module.xqy", "localhost", "8999", "user", "password");</tt>
  *
  * @author Emmanuel Tourdot
  */

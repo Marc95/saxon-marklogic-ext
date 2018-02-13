@@ -28,24 +28,27 @@ import net.sf.saxon.om.StructuredQName;
 
 /**
  * This class is an extension function for Saxon. It must be declared by
- * <tt>configuration.registerExtensionFunction(new MarkLogicQuery());</tt>, or
+ * <tt>configuration.registerExtensionFunction(new MarkLogicQueryURI());</tt>, or
  * via Saxon Configuration file
  * (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon
  * documentation</a>). In gaulois-pipe, it just has to be in the classpath.
  *
+ * The first argument (xs:string) is the URI (absolute or relative) of an XQuery file that must be run on the MarkLogic Server instance.
+ * The second argument is an XPath 3.0 map containing the server and database configuration.
+ * 
  * Use as :
  * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query("for $i in 1 to 10 return
- * &lt;test&gt;{$i}&lt;/test&gt;",&lt;marklogic&gt;
- * &lt;server&gt;localhost&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;
- * &lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
+ * mkl-ext:marklogic-query(
+ *   "file:/path/to/file.xqy",
+ *   map{
+ *     "server":"localhost",
+ *     "port":8004,
+ *     "user":"admin",
+ *     "password":"admin",
+ *     "database":"Test",
+ *     "authentication":"basic"
+ *   }
  * );</tt>
- * Or :
- * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query("for $i in 1 to 10 return
- * &lt;test&gt;{$i}&lt;/test&gt;", "localhost", "8999", "user", "password");</tt>
- *
- * Many thanks to Christophe Marchand for the base code!
  *
  * @author Axel Court
  */
