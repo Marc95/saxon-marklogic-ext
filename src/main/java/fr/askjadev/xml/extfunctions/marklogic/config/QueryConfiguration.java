@@ -29,19 +29,15 @@ package fr.askjadev.xml.extfunctions.marklogic.config;
  */
 public class QueryConfiguration {
     
-    public String server;
-    public String user;
-    public String password;
-    public String database;
-    public Integer port;
-    public String authentication;
+    private String server;
+    private String user;
+    private String password;
+    private String database;
+    private Integer port;
+    private String authentication;
 
     public QueryConfiguration() {
-        this.server = null;
-        this.user = null;
-        this.password = null;
-        this.database = null;
-        this.port = null;
+        // Base constructor, with default values
         this.authentication = "basic";
     }
     

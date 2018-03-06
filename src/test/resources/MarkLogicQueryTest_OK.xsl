@@ -10,7 +10,44 @@
   
   <xsl:template match="/">
     <xsl:variable name="query" select="'for $i in 1 to 10 return &lt;test&gt;{$i}&lt;/test&gt;'" as="xs:string"/>
-    <xsl:sequence select="mkl-ext:marklogic-query($query, $config)"/>
+    
+    <xsl:variable name="element" as="element()">
+      <element att="val">text</element>
+    </xsl:variable>
+
+    <xsl:variable name="text" as="text()">
+      <xsl:text>Text node</xsl:text>
+    </xsl:variable>
+    
+    <xsl:variable name="comment" as="comment()">
+      <xsl:comment> Mon commentaire </xsl:comment>
+    </xsl:variable>
+    
+    <xsl:variable name="pi" as="processing-instruction()">
+      <xsl:processing-instruction name="pi">valeur</xsl:processing-instruction>
+    </xsl:variable>
+    
+    <xsl:variable name="doc" as="document-node()">
+      <xsl:document>
+        <xsl:sequence select="$element"/>
+      </xsl:document>
+    </xsl:variable>
+    
+    <xsl:variable name="extVar"
+                  as="map(xs:QName,item()*)"
+                  select="map{
+                    QName('http://namespace','pre:string')    : 'string value',
+                    QName('http://namespace','pre:int')       : 12,
+                    QName('http://namespace','pre:dateTime')  : current-dateTime(),
+                    QName('http://namespace','pre:QName')     : QName('http://ns','toto:titi'),
+                    QName('http://namespace','pre:element')   : $element,
+                    QName('http://namespace','pre:text')      : $text,
+                    QName('http://namespace','pre:comment')   : $comment,
+                    QName('http://namespace','pre:pi')        : $pi,
+                    QName('http://namespace','pre:doc')       : $doc
+                  }"/><!-- QName('http://namespace','pre:emptySeq')  : () -->
+    
+    <xsl:sequence select="mkl-ext:marklogic-query($query, $config, $extVar)"/>
   </xsl:template>
   
 </xsl:stylesheet>

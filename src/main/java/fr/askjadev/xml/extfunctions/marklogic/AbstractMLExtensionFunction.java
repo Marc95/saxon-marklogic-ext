@@ -34,8 +34,12 @@ import com.marklogic.client.io.Format;
 import com.marklogic.client.io.InputStreamHandle;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfigurationFactory;
+import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVar;
+import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVarFactory;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
@@ -120,6 +124,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                             xquery.close();
                             break;
                     }
+                    call = addExternalVariables(call, xpc, args);
                     EvalResultIterator result = call.eval();
                     MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, session);
                     return new LazySequence(it);
@@ -177,6 +182,18 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
         catch (URISyntaxException | XPathException ex) {
             throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
         }
+    }
+    
+    private ServerEvaluationCall addExternalVariables(ServerEvaluationCall call, XPathContext xpc, Sequence[] args) throws XPathException {
+        if (args.length == 3) {
+            ArrayList<QueryExternalVar> externalVars = new QueryExternalVarFactory().getExternalVariables(xpc, args);
+            Iterator<QueryExternalVar> it = externalVars.iterator();
+            while (it.hasNext()) {
+                QueryExternalVar var = it.next();
+                call = var.addToCall(call);
+            }
+        }
+        return call;
     }
 
 }
