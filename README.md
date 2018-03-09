@@ -12,7 +12,7 @@ The extensions may be registered:
 They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> services. The jar just has to be in the classpath for the functions to be used with gaulois-pipe.
 
 
-The project is officially built around *Saxon 9.8* (HE/PE/EE) and XSLT 3.0.
+The project is officially built around *Saxon 9.8* (HE/PE/EE) and XPath / XSLT 3.0.
 There is also a Saxon 9.7 compatible version that is maintained on a separate branch.
 
 
@@ -25,12 +25,12 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
 
 <pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query(
-    "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
+    'for $i in 1 to 10 return {$i}',
     map{
-      "server":"localhost",
-      "port":8004,
-      "user":"admin",
-      "password":"admin"
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
     }
   )"
 /&gt;</pre>
@@ -42,12 +42,12 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
 <pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query-invoke(
-    "/path/to/module.xqy",
+    '/path/to/module.xqy',
     map{
-      "server":"localhost",
-      "port":8004,
-      "user":"admin",
-      "password":"admin"
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
     }
   )"
 /&gt;</pre>
@@ -58,13 +58,13 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
 <pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
-  mkl-ext:marklogic-query-invoke(
-    "file:/path/to/file.xqy",
+  mkl-ext:marklogic-query-uri(
+    'file:/path/to/file.xqy',
     map{
-      "server":"localhost",
-      "port":8004,
-      "user":"admin",
-      "password":"admin"
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
     }
   )"
 /&gt;</pre>
@@ -91,12 +91,13 @@ Most of the XDM atomic and node types are supported (including maps and arrays),
 Example :
 
 <pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
-  mkl-ext:marklogic-query-invoke(
-    "file:/path/to/file.xqy",
+  mkl-ext:marklogic-query-uri(
+    'file:/path/to/file.xqy',
     $configMap,
     map{
-       QName("http://namespace","pre:string"):"string value",
-       QName("http://namespace","pre:integer"):1
+       QName('http://namespace','pre:string'):'string value',
+       QName('http://namespace','pre:integer'):1,
+       QName('http://namespace','pre:comment'):$comment
     }
   )"
 /&gt;
@@ -105,6 +106,8 @@ Example :
 <pre>declare namespace pre="http://namespace";
 declare variable $pre:string as xs:string external;
 declare variable $pre:integer as xs:string external;
+declare variable $pre:comment as document-node() external;
+let $pre:comment := $pre:comment/comment()
 [...]
 </pre>
 
