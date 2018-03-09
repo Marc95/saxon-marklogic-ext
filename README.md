@@ -12,6 +12,10 @@ The extensions may be registered:
 They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> services. The jar just has to be in the classpath for the functions to be used with gaulois-pipe.
 
 
+The project is officially built around *Saxon 9.8* (HE/PE/EE).
+There is also a Saxon 9.7 compatible version that is maintained on a separate branch.
+
+
 ## Usage
 
 
@@ -67,17 +71,38 @@ mkl-ext:marklogic-query-invoke(
 
 The second parameter is an XPath 3.0 map containing the server and database configuration.
 
-The options "server" (xs:string), "port" (xs:integer), "user" (xs:string) and "password" (xs:string) are mandatory.
+The options "server" (<tt>xs:string</tt>), "port" (<tt>xs:integer</tt>), "user" (<tt>xs:string</tt>) and "password" (<tt>xs:string</tt>) are mandatory.
 
 You can supply 2 additional options:
 
-- <tt>"database"</tt> (xs:string) : alternative database name, if not using the one associated with the HTTP server.
-- <tt>"authentication"</tt> (xs:string) : authentication method. Authorized values: "digest", "basic" (default).
+- "database" (<tt>xs:string</tt>) : alternative database name, if not using the one associated with the HTTP server.
+- "authentication" (<tt>xs:string</tt>) : authentication method. Authorized values: "digest", "basic" (default).
 
-/!\ The query must return a valid XML document (or a sequence of XML documents). If you need to return an atomic value, wrap it in a dummy XML element.
+There is also a third parameter that can be supplied as a XPath 3.0 map containing the external variables values. The map must be of type <tt>map(xs:QName, item()?)</tt>, where :
+
+- each key is a <tt>xs:QName</tt> matching an external variable declaration in the XQuery script ;
+- each value must be a singleton or empty sequence (because of restrictions in the MarkLogic Java API).
+
+Most of the XDM atomic and node types are supported (including maps and arrays), though there might be some unsupported ones or restrictions of usage. For instance, an <tt>empty-sequence()</tt> is sent as a <tt>xs:anyAtomicType("")</tt> to MarkLogic and thus cannot be casted as a node in the XQuery. Also, <tt>attribute()</tt>, <tt>comment()</tt> and <tt>processing-instruction()</tt> will be sent to MarkLogic wrapped in a dummy document element.
+
+Example :
+
+<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
+mkl-ext:marklogic-query-invoke(
+  "file:/path/to/file.xqy",
+  $configMap,
+  map{
+     QName("http://namespace","pre:string"):"string value",
+     QName("http://namespace","pre:integer"):1
+  }
+);</pre>
+
+The query can return node(s) (except attributes) or atomic value(s), though there might be some unsupported ones or restrictions of usage.
 
 
-## Current version: 1.0.4
+## Current version (for Saxon 9.8): 1.0.5-98
+
+### Alternative version (for Saxon 9.7 PE/EE): 1.0.5-97
 
 Maven support:
 
@@ -85,7 +110,7 @@ Maven support:
 &lt;dependency&gt;
   &lt;groupId&gt;fr.askjadev.xml.extfunctions&lt;/groupId&gt;
   &lt;artifactId&gt;marklogic&lt;/artifactId&gt;
-  &lt;version&gt;1.0.4&lt;/version&gt;
+  &lt;version&gt;1.0.5-98&lt;/version&gt;
 &lt;/dependency&gt;
 </pre>
 
@@ -121,8 +146,6 @@ If you wish to change this behaviour, you can add additional parameters to the t
 |testPort|8004|`-DtestPort=8999`|The port to use to talk to the HTTP Server.|
 |testUser|admin|`-DtestUser=myUser`|An authorised user.|
 |testPassword|admin|`-DtestPassword=myPassword`|The user password.|
-|testDatabase|Test|`-DtestDatabase=myDb`|The HTTP Server default database name.|
-|testAuthentication|basic|`-DtestAuthentication=digest`|The HTTP Server authentication scheme.<br>Authorized values: `basic` or `digest`.|
 
 
 ## Thanks
