@@ -23,7 +23,7 @@ There is also a Saxon 9.7 compatible version that is maintained on a separate br
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
 
-<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query(
     "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
     map{
@@ -33,14 +33,14 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
       "password":"admin"
     }
   )"
-/></pre>
+/&gt;</pre>
 
 
 ### Invoke an XQuery module already deployed on MarkLogic Server
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
-<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query-invoke(
     "/path/to/module.xqy",
     map{
@@ -50,14 +50,14 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
       "password":"admin"
     }
   )"
-/></pre>
+/&gt;</pre>
 
 
 ### Read an XQuery file from an URI and run it
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
-<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query-invoke(
     "file:/path/to/file.xqy",
     map{
@@ -67,7 +67,7 @@ Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
       "password":"admin"
     }
   )"
-/></pre>
+/&gt;</pre>
 
 
 ### Additional information
@@ -90,7 +90,7 @@ Most of the XDM atomic and node types are supported (including maps and arrays),
 
 Example :
 
-<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
   mkl-ext:marklogic-query-invoke(
     "file:/path/to/file.xqy",
     $configMap,
@@ -99,10 +99,10 @@ Example :
        QName("http://namespace","pre:integer"):1
     }
   )"
-/>
+/&gt;
 </pre>
 
-<pre>declare namespace pre = 'http://namespace';
+<pre>declare namespace pre="http://namespace";
 declare variable $pre:string as xs:string external;
 declare variable $pre:integer as xs:string external;
 [...]
