@@ -35,20 +35,24 @@ import net.sf.saxon.om.StructuredQName;
  *
  * The first argument (xs:string) is the URI (absolute or relative) of an XQuery file that must be run on the MarkLogic Server instance.
  * The second argument is an XPath 3.0 map containing the server and database configuration.
+ * The third argument is an XPath 3.0 map containing the external variables values.
  * 
  * Use as :
- * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query(
- *   "file:/path/to/file.xqy",
- *   map{
- *     "server":"localhost",
- *     "port":8004,
- *     "user":"admin",
- *     "password":"admin",
- *     "database":"Test",
- *     "authentication":"basic"
- *   }
- * );</tt>
+ * Use as :
+ * <tt>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+ *   mkl-ext:marklogic-query-uri(
+ *     'for $i in 1 to 10 return {$i}',
+ *     map{
+ *       'server':'localhost',
+ *       'port':8004,
+ *       'user':'admin',
+ *       'password':'admin'
+ *     },
+ *     map{
+ *       QName('http://namespace','pre:string'):'string value'
+ *     }
+ *   )"
+ * /&gt;</tt>
  *
  * @author Axel Court
  */
