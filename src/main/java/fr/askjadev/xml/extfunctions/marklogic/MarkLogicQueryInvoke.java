@@ -23,20 +23,8 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic;
 
-import com.marklogic.client.DatabaseClient;
-import com.marklogic.client.DatabaseClientFactory;
-import com.marklogic.client.FailedRequestException;
-import com.marklogic.client.ForbiddenUserException;
-import com.marklogic.client.eval.EvalResultIterator;
-import com.marklogic.client.eval.ServerEvaluationCall;
-import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
-import net.sf.saxon.om.LazySequence;
-import net.sf.saxon.om.Sequence;
 import net.sf.saxon.om.StructuredQName;
-import net.sf.saxon.s9api.DocumentBuilder;
-import net.sf.saxon.s9api.Processor;
-import net.sf.saxon.trans.XPathException;
 
 /**
  * This class is an extension function for Saxon. It must be declared by
@@ -45,15 +33,25 @@ import net.sf.saxon.trans.XPathException;
  * (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon
  * documentation</a>). In gaulois-pipe, it just has to be in the classpath.
  *
+ * The first argument (xs:string) is the path to an XQuery module already deployed on the MarkLogic Server instance.
+ * The second argument is an XPath 3.0 map containing the server and database configuration.
+ * The third argument is an XPath 3.0 map containing the external variables values.
+ * 
  * Use as :
- * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query-invoke("module.xqy",&lt;marklogic&gt;
- * &lt;server&gt;localhost&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;
- * &lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
- * );</tt>
- * Or :
- * <tt>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
- * mkl-ext:marklogic-query-invoke("module.xqy", "localhost", "8999", "user", "password");</tt>
+ * <tt>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+ *   mkl-ext:marklogic-query-invoke(
+ *     'for $i in 1 to 10 return {$i}',
+ *     map{
+ *       'server':'localhost',
+ *       'port':8004,
+ *       'user':'admin',
+ *       'password':'admin'
+ *     },
+ *     map{
+ *       QName('http://namespace','pre:string'):'string value'
+ *     }
+ *   )"
+ * /&gt;</tt>
  *
  * @author Emmanuel Tourdot
  */

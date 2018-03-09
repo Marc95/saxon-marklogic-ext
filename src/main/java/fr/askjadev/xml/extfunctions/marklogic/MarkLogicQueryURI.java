@@ -28,18 +28,19 @@ import net.sf.saxon.om.StructuredQName;
 
 /**
  * This class is an extension function for Saxon. It must be declared by
- * <tt>configuration.registerExtensionFunction(new MarkLogicQuery());</tt>, or
+ * <tt>configuration.registerExtensionFunction(new MarkLogicQueryURI());</tt>, or
  * via Saxon Configuration file
  * (<a href=http://www.saxonica.com/documentation9.7/index.html#!configuration/configuration-file>Saxon
  * documentation</a>). In gaulois-pipe, it just has to be in the classpath.
- * 
- * The first argument (xs:string) is the XQuery code that must be run on the MarkLogic Server instance.
+ *
+ * The first argument (xs:string) is the URI (absolute or relative) of an XQuery file that must be run on the MarkLogic Server instance.
  * The second argument is an XPath 3.0 map containing the server and database configuration.
  * The third argument is an XPath 3.0 map containing the external variables values.
- *
+ * 
+ * Use as :
  * Use as :
  * <tt>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
- *   mkl-ext:marklogic-query(
+ *   mkl-ext:marklogic-query-uri(
  *     'for $i in 1 to 10 return {$i}',
  *     map{
  *       'server':'localhost',
@@ -53,14 +54,12 @@ import net.sf.saxon.om.StructuredQName;
  *   )"
  * /&gt;</tt>
  *
- * Many thanks to Christophe Marchand for the base code!
- *
  * @author Axel Court
  */
-public class MarkLogicQuery extends AbstractMLExtensionFunction {
+public class MarkLogicQueryURI extends AbstractMLExtensionFunction {
 
     public static final String EXT_NAMESPACE_URI = "fr:askjadev:xml:extfunctions";
-    public static final String FUNCTION_NAME = "marklogic-query";
+    public static final String FUNCTION_NAME = "marklogic-query-uri";
     public static final String EXT_NS_COMMON_PREFIX = "mkl-ext";
 
     @Override
@@ -70,7 +69,7 @@ public class MarkLogicQuery extends AbstractMLExtensionFunction {
 
     @Override
     public ExtensionFunctionCall makeCallExpression() {
-        return constructExtensionFunctionCall(ExtentionType.XQUERY_STRING);
+        return constructExtensionFunctionCall(ExtentionType.XQUERY_URI);
     }
 
 }

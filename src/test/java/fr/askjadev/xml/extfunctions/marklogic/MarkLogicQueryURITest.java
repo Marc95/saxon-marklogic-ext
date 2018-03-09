@@ -65,11 +65,11 @@ import static org.junit.Assert.*;
  *
  * @author EXT-acourt
  */
-public class MarkLogicQueryTest {
+public class MarkLogicQueryURITest {
     
     private final HashMap<XdmAtomicValue, XdmAtomicValue> CONNECT;
     
-    public MarkLogicQueryTest() {
+    public MarkLogicQueryURITest() {
         super();
         this.CONNECT = new HashMap<>();
         this.CONNECT.put(new XdmAtomicValue("server"), new XdmAtomicValue(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer")));
@@ -95,22 +95,22 @@ public class MarkLogicQueryTest {
     }
 
     /**
-     * Test of getFunctionQName method, of class MarkLogicQuery.
+     * Test of getFunctionQName method, of class MarkLogicQueryURI.
      */
     @Test
     public void testGetFunctionQName() {
-        MarkLogicQuery instance = new MarkLogicQuery();
-        StructuredQName expResult = new StructuredQName("mkl-ext", "fr:askjadev:xml:extfunctions", "marklogic-query");
+        MarkLogicQueryURI instance = new MarkLogicQueryURI();
+        StructuredQName expResult = new StructuredQName("mkl-ext", "fr:askjadev:xml:extfunctions", "marklogic-query-uri");
         StructuredQName result = instance.getFunctionQName();
         assertEquals(expResult, result);
     }
 
     /**
-     * Test of getArgumentTypes method, of class MarkLogicQuery.
+     * Test of getArgumentTypes method, of class MarkLogicQueryURI.
      */
     @Test
     public void testGetArgumentTypes() {
-        MarkLogicQuery instance = new MarkLogicQuery();
+        MarkLogicQueryURI instance = new MarkLogicQueryURI();
         SequenceType[] expResult = new SequenceType[] { SequenceType.SINGLE_STRING, MapType.OPTIONAL_MAP_ITEM, MapType.OPTIONAL_MAP_ITEM };
         SequenceType[] result = instance.getArgumentTypes();
         assertEquals(expResult.length, result.length);
@@ -120,34 +120,34 @@ public class MarkLogicQueryTest {
     }
 
     /**
-     * Test of getMinimumNumberOfArguments method, of class MarkLogicQuery.
+     * Test of getMinimumNumberOfArguments method, of class MarkLogicQueryURI.
      */
     @Test
     public void testGetMinimumNumberOfArguments() {
-        MarkLogicQuery instance = new MarkLogicQuery();
+        MarkLogicQueryURI instance = new MarkLogicQueryURI();
         int expResult = 2;
         int result = instance.getMinimumNumberOfArguments();
         assertEquals(expResult, result);
     }
 
     /**
-     * Test of getMaximumNumberOfArguments method, of class MarkLogicQuery.
+     * Test of getMaximumNumberOfArguments method, of class MarkLogicQueryURI.
      */
     @Test
     public void testGetMaximumNumberOfArguments() {
-        MarkLogicQuery instance = new MarkLogicQuery();
+        MarkLogicQueryURI instance = new MarkLogicQueryURI();
         int expResult = 3;
         int result = instance.getMaximumNumberOfArguments();
         assertEquals(expResult, result);
     }
 
     /**
-     * Test of getResultType method, of class MarkLogicQuery.
+     * Test of getResultType method, of class MarkLogicQueryURI.
      */
     @Test
     public void testGetResultType() {
         SequenceType[] sts = null;
-        MarkLogicQuery instance = new MarkLogicQuery();
+        MarkLogicQueryURI instance = new MarkLogicQueryURI();
         SequenceType expResult = SequenceType.ANY_SEQUENCE;
         SequenceType result = instance.getResultType(sts);
         assertEquals(expResult, result);
@@ -161,16 +161,21 @@ public class MarkLogicQueryTest {
     @Test
     public void testQueryModule2Args() throws XPathException, SaxonApiException {
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            QName var = new QName("config");
-            xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
-            XdmMap xqConfig = new XdmMap(CONNECT);
-            xp.setVariable(var, xqConfig);
+            xpc.declareNamespace(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX, MarkLogicQueryURI.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varUri = new QName("xqueryUri");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varUri);
+            XPathSelector xp = xpc.compile(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryURI.FUNCTION_NAME + "($xqueryUri, $config)").load();
+            XdmValue xqConfig = new XdmMap(CONNECT);
+            xp.setVariable(varConf, xqConfig);
+            String xqueryUri = this.getClass().getClassLoader().getResource("MarkLogicQueryURITest.xqy").toString();
+            XdmAtomicValue xqUri = new XdmAtomicValue(xqueryUri);
+            xp.setVariable(varUri, xqUri);
             XdmValue result = xp.evaluate();
             SequenceIterator it = result.getUnderlyingValue().iterate();
             Item item = it.next();
@@ -194,17 +199,22 @@ public class MarkLogicQueryTest {
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_WrongParamType() throws SaxonApiException {
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            QName var = new QName("config");
-            xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            xpc.declareNamespace(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX, MarkLogicQueryURI.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varUri = new QName("xqueryUri");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varUri);
+            XPathSelector xp = xpc.compile(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryURI.FUNCTION_NAME + "($xqueryUri, $config)").load();
             CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue("string"));
             XdmMap xqConfig = new XdmMap(CONNECT);
-            xp.setVariable(var, xqConfig);
+            xp.setVariable(varConf, xqConfig);
+            String xqueryUri = this.getClass().getClassLoader().getResource("MarkLogicQueryURITest.xqy").toString();
+            XdmAtomicValue xqUri = new XdmAtomicValue(xqueryUri);
+            xp.setVariable(varUri, xqUri);
             xp.evaluate();
         }
         catch (SaxonApiException ex) {
@@ -220,17 +230,22 @@ public class MarkLogicQueryTest {
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_MissingParam() throws SaxonApiException {
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            QName var = new QName("config");
-            xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            xpc.declareNamespace(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX, MarkLogicQueryURI.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varUri = new QName("xqueryUri");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varUri);
+            XPathSelector xp = xpc.compile(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryURI.FUNCTION_NAME + "($xqueryUri, $config)").load();
             CONNECT.remove(new XdmAtomicValue("server"));
             XdmMap xqConfig = new XdmMap(CONNECT);
-            xp.setVariable(var, xqConfig);
+            xp.setVariable(varConf, xqConfig);
+            String xqueryUri = this.getClass().getClassLoader().getResource("MarkLogicQueryURITest.xqy").toString();
+            XdmAtomicValue xqUri = new XdmAtomicValue(xqueryUri);
+            xp.setVariable(varUri, xqUri);
             xp.evaluate();
         }
         catch (SaxonApiException ex) {
@@ -246,16 +261,21 @@ public class MarkLogicQueryTest {
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_BadArgument() throws SaxonApiException {
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         Processor proc = new Processor(config);
         XPathCompiler xpc = proc.newXPathCompiler();
         try {
-            xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
-            QName var = new QName("config");
-            xpc.declareVariable(var);
-            XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
+            xpc.declareNamespace(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX, MarkLogicQueryURI.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varUri = new QName("xqueryUri");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varUri);
+            XPathSelector xp = xpc.compile(MarkLogicQueryURI.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryURI.FUNCTION_NAME + "($xqueryUri, $config)").load();
             XdmAtomicValue xqConfig = new XdmAtomicValue("string");
-            xp.setVariable(var, xqConfig);
+            xp.setVariable(varConf, xqConfig);
+            String xqueryUri = this.getClass().getClassLoader().getResource("MarkLogicQueryURITest.xqy").toString();
+            XdmAtomicValue xqUri = new XdmAtomicValue(xqueryUri);
+            xp.setVariable(varUri, xqUri);
             xp.evaluate();
         }
         catch (SaxonApiException ex) {
@@ -275,10 +295,37 @@ public class MarkLogicQueryTest {
         TransformerFactory factory = TransformerFactory.newInstance();
         TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         tFactoryImpl.setConfiguration(config);
         try {
-            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_OK.xsl").toURI().toString());
+            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryURITest_OK.xsl").toURI().toString());
+            TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
+            transformer.setParameter("config", new XdmMap(CONNECT));
+            Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));
+            StringWriter result = new StringWriter();
+            transformer.transform(text, new StreamResult(result));
+        }
+        catch (XPathException | TransformerConfigurationException | URISyntaxException ex) {
+            System.err.println(ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    /**
+     * Test KO with XSL - XQuery file not found
+     * @throws XPathException
+     * @throws TransformerConfigurationException
+     * @throws java.net.URISyntaxException
+     */
+    @Test(expected = XPathException.class)
+    public void testXSL_QueryKO_FileNotFound() throws XPathException, TransformerConfigurationException, URISyntaxException {
+        TransformerFactory factory = TransformerFactory.newInstance();
+        TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
+        Configuration config = new Configuration();
+        config.registerExtensionFunction(new MarkLogicQueryURI());
+        tFactoryImpl.setConfiguration(config);
+        try {
+            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryURITest_FileNotFound.xsl").toURI().toString());
             TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
             transformer.setParameter("config", new XdmMap(CONNECT));
             Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));
@@ -304,11 +351,11 @@ public class MarkLogicQueryTest {
         TransformerFactory factory = TransformerFactory.newInstance();
         TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
         Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
+        config.registerExtensionFunction(new MarkLogicQueryURI());
         tFactoryImpl.setConfiguration(config);
         Processor processor = new Processor(config);
         try {
-            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_ExternalVariables_OK.xsl").toURI().toString());
+            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryURITest_ExternalVariables_OK.xsl").toURI().toString());
             TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
             transformer.setParameter("config", new XdmMap(CONNECT));
             Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));

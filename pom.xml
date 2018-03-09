@@ -4,7 +4,7 @@
   
   <groupId>fr.askjadev.xml.extfunctions</groupId>
   <artifactId>marklogic</artifactId>
-  <version>1.0.5-SNAPSHOT</version>
+  <version>1.0.5-98-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Marklogic extension functions</name>
@@ -52,13 +52,23 @@
     <dependency>
       <groupId>net.sf.saxon</groupId>
       <artifactId>Saxon-HE</artifactId>
-      <version>9.7.0-20</version>
+      <version>9.8.0-8</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.marklogic</groupId>
       <artifactId>marklogic-client-api</artifactId>
       <version>4.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.6</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.2.3</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

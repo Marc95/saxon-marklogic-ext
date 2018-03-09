@@ -12,6 +12,10 @@ The extensions may be registered:
 They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> services. The jar just has to be in the classpath for the functions to be used with gaulois-pipe.
 
 
+The project is officially built around *Saxon 9.8* (HE/PE/EE) and XPath / XSLT 3.0.
+There is also a Saxon 9.7 compatible version that is maintained on a separate branch.
+
+
 ## Usage
 
 
@@ -19,54 +23,100 @@ They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a>
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query(
-  "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
-  &lt;marklogic&gt;&lt;server&gt;host&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;&lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
-);</pre>
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query(
+    'for $i in 1 to 10 return {$i}',
+    map{
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
+    }
+  )"
+/&gt;</pre>
 
 
-Or the alternative "<tt>xs:string+</tt> signature":
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query(
-  "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
-  "host", "8999", "user", "password"
-);</pre>
-
-
-### Invoke a XQuery module already deployed on MarkLogic Server
+### Invoke an XQuery module already deployed on MarkLogic Server
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query-invoke(
-  "module.xqy",
-  &lt;marklogic&gt;&lt;server&gt;host&lt;/server&gt;&lt;port&gt;8999&lt;/port&gt;&lt;user&gt;user&lt;/user&gt;&lt;password&gt;password&lt;/password&gt;&lt;/marklogic&gt;
-);</pre>
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-invoke(
+    '/path/to/module.xqy',
+    map{
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
+    }
+  )"
+/&gt;</pre>
 
 
-Or the alternative "<tt>xs:string+</tt> signature":
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query-invoke(
-  "module.xqy",
-  "host", "8999", "user", "password"
-);</pre>
+### Read an XQuery file from an URI and run it
+
+Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
+
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-uri(
+    'file:/path/to/file.xqy',
+    map{
+      'server':'localhost',
+      'port':8004,
+      'user':'admin',
+      'password':'admin'
+    }
+  )"
+/&gt;</pre>
 
 
 ### Additional information
 
-You can supply 2 additional parameters:
+The second parameter is an XPath 3.0 map containing the server and database configuration.
 
-- <tt>&lt;database&gt;database name&lt;/database&gt;</tt> : alternative database name, if not using the one associated with the HTTP server.
-- <tt>&lt;authentication&gt;authentication method&lt;/authentication&gt;</tt> : authentication method. Authorized values: "digest", "basic" (default).
+The options "server" (<tt>xs:string</tt>), "port" (<tt>xs:integer</tt>), "user" (<tt>xs:string</tt>) and "password" (<tt>xs:string</tt>) are mandatory.
 
-When using the alternative "<tt>xs:string+</tt> signature", <tt>$database</tt> and <tt>$authentication</tt> must be supplied as the 6th and 7th arguments respectively.
+You can supply 2 additional options:
+
+- "database" (<tt>xs:string</tt>) : alternative database name, if not using the one associated with the HTTP server.
+- "authentication" (<tt>xs:string</tt>) : authentication method. Authorized values: "digest", "basic" (default).
+
+There is also a third parameter that can be supplied as a XPath 3.0 map containing the external variables values. The map must be of type <tt>map(xs:QName, item()?)</tt>, where :
+
+- each key is a <tt>xs:QName</tt> matching an external variable declaration in the XQuery script ;
+- each value must be a singleton or empty sequence (because of restrictions in the MarkLogic Java API).
+
+Most of the XDM atomic and node types are supported (including maps and arrays), though there might be some unsupported ones or restrictions of usage. For instance, an <tt>empty-sequence()</tt> is sent as a <tt>xs:anyAtomicType("")</tt> to MarkLogic and thus cannot be casted as a node in the XQuery. Also, <tt>attribute()</tt>, <tt>comment()</tt> and <tt>processing-instruction()</tt> will be sent to MarkLogic wrapped in a dummy document element.
+
+Example :
+
+<pre>&lt;xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-uri(
+    'file:/path/to/file.xqy',
+    $configMap,
+    map{
+       QName('http://namespace','pre:string'):'string value',
+       QName('http://namespace','pre:integer'):1,
+       QName('http://namespace','pre:comment'):$comment
+    }
+  )"
+/&gt;
+</pre>
+
+<pre>declare namespace pre="http://namespace";
+declare variable $pre:string as xs:string external;
+declare variable $pre:integer as xs:string external;
+declare variable $pre:comment as document-node() external;
+let $pre:comment := $pre:comment/comment()
+[...]
+</pre>
+
+The query can return node(s) (except attributes) or atomic value(s), though there might be some unsupported ones or restrictions of usage.
 
 
-/!\ The query must return a valid XML document (or a sequence of XML documents). If you need to return an atomic value, wrap it in a dummy XML element.
+## Current version (for Saxon 9.8): 1.0.5-98
 
-
-## Current version: 1.0.4
+### Alternative version (for Saxon 9.7): 1.0.5-97
 
 Maven support:
 
@@ -74,7 +124,7 @@ Maven support:
 &lt;dependency&gt;
   &lt;groupId&gt;fr.askjadev.xml.extfunctions&lt;/groupId&gt;
   &lt;artifactId&gt;marklogic&lt;/artifactId&gt;
-  &lt;version&gt;1.0.4&lt;/version&gt;
+  &lt;version&gt;1.0.5-98&lt;/version&gt;
 &lt;/dependency&gt;
 </pre>
 
@@ -110,12 +160,10 @@ If you wish to change this behaviour, you can add additional parameters to the t
 |testPort|8004|`-DtestPort=8999`|The port to use to talk to the HTTP Server.|
 |testUser|admin|`-DtestUser=myUser`|An authorised user.|
 |testPassword|admin|`-DtestPassword=myPassword`|The user password.|
-|testDatabase|Test|`-DtestDatabase=myDb`|The HTTP Server default database name.|
-|testAuthentication|basic|`-DtestAuthentication=digest`|The HTTP Server authentication scheme.<br>Authorized values: `basic` or `digest`.|
 
 
 ## Thanks
 
-Many thanks to Christophe Marchand for the base code!
+Many thanks to Christophe Marchand for the base code, and Emmanuel Tourdot for the improvements!
 
 Go there for a BaseX similar extension function: <a href="https://github.com/cmarchand/xpath-basex-ext">https://github.com/cmarchand/xpath-basex-ext</a>.

@@ -1,40 +1,80 @@
+/*
+ * The MIT License
+ *
+ * Copyright 2018 ext-acourt.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package fr.askjadev.xml.extfunctions.marklogic;
 
+import fr.askjadev.xml.extfunctions.marklogic.result.MarkLogicSequenceIterator;
 import com.marklogic.client.DatabaseClient;
 import com.marklogic.client.DatabaseClientFactory;
 import com.marklogic.client.FailedRequestException;
 import com.marklogic.client.ForbiddenUserException;
 import com.marklogic.client.eval.EvalResultIterator;
 import com.marklogic.client.eval.ServerEvaluationCall;
+import com.marklogic.client.io.Format;
+import com.marklogic.client.io.InputStreamHandle;
+import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
+import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfigurationFactory;
+import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVar;
+import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVarFactory;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import net.sf.saxon.expr.Expression;
+import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
 import net.sf.saxon.lib.ExtensionFunctionDefinition;
+import net.sf.saxon.lib.StandardUnparsedTextResolver;
+import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.*;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.trans.XPathException;
-import net.sf.saxon.tree.iter.AxisIterator;
-import net.sf.saxon.tree.tiny.TinyElementImpl;
-import net.sf.saxon.type.Type;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.StringValue;
+import org.apache.commons.io.input.ReaderInputStream;
+import org.apache.http.client.utils.URIUtils;
 
+/**
+ * Abstract class representing a Saxon MarkLogic extension function
+ * @author Axel Court + Emmanuel Tourdot
+ */
 public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefinition {
-
+    
+    private String staticBaseUri;
+    
     enum ExtentionType {
-        XQUERY, MODULE;
+        XQUERY_URI, XQUERY_STRING, MODULE;
     }
 
     @Override
     public SequenceType[] getArgumentTypes() {
-        return new SequenceType[]{
-                SequenceType.SINGLE_STRING,
-                SequenceType.SINGLE_ITEM,
-                SequenceType.OPTIONAL_STRING,
-                SequenceType.OPTIONAL_STRING,
-                SequenceType.OPTIONAL_STRING,
-                SequenceType.OPTIONAL_STRING,
-                SequenceType.OPTIONAL_STRING};
+        return new SequenceType[] {
+            SequenceType.SINGLE_STRING,
+            MapType.OPTIONAL_MAP_ITEM,
+            MapType.OPTIONAL_MAP_ITEM
+        };
     }
 
     @Override
@@ -44,7 +84,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
 
     @Override
     public int getMaximumNumberOfArguments() {
-        return 7;
+        return 3;
     }
 
     @Override
@@ -53,139 +93,108 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
     }
 
     ExtensionFunctionCall constructExtensionFunctionCall(final ExtentionType type) {
+
         return new ExtensionFunctionCall() {
+            
             @Override
-            public Sequence call(XPathContext xpc, Sequence[] sqncs) throws XPathException {
-                // Get and check args
-                String[] args = checkArgs(sqncs);
-                // Read args
-                String moduleOrQuery = args[0];
-                String server = args[1];
-                // TODO: catch exception if non num !
-                Integer port = Integer.parseInt(args[2]);
-                String user = args[3];
-                String password = args[4];
-                String database = args[5];
-                String authentication = args[6];
+            public Sequence call(XPathContext xpc, Sequence[] args) throws XPathException {
+                // Check and get the configuration
+                QueryConfiguration config = new QueryConfigurationFactory().getConfig(args);
+                // Get the XQuery or the module to invoke
+                String moduleOrQuery = getXQueryOrModule(args);
                 // Launch
                 Processor proc = new Processor(xpc.getConfiguration());
                 DatabaseClient session = null;
                 try {
-                    session = createMarkLogicClient(authentication, user, password, database, server, port);
+                    session = createMarkLogicClient(config);
                     // Eval query and get result
                     DocumentBuilder builder = proc.newDocumentBuilder();
                     ServerEvaluationCall call = session.newServerEval();
-                    if (type == ExtentionType.MODULE) {
-                        call.modulePath(moduleOrQuery);
-                    } else {
-                        call.xquery(moduleOrQuery);
+                    switch (type) {
+                        case MODULE:
+                            call.modulePath(moduleOrQuery);
+                            break;
+                        case XQUERY_STRING:
+                            call.xquery(moduleOrQuery);
+                            break;
+                        case XQUERY_URI:
+                            // Read the XQuery and send it as an InputStreamHandle
+                            InputStreamHandle xquery = getXQueryFromURI(xpc, moduleOrQuery);
+                            call.xquery(xquery);
+                            xquery.close();
+                            break;
                     }
+                    call = addExternalVariables(call, xpc, proc, args);
                     EvalResultIterator result = call.eval();
-                    MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, session);
+                    MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, xpc, session);
                     return new LazySequence(it);
-                } catch (FailedRequestException | ForbiddenUserException ex) {
+                }
+                catch (FailedRequestException | ForbiddenUserException ex) {
                     throw new XPathException(ex);
                 }
             }
+            
+            @Override
+            public void supplyStaticContext(StaticContext context, int locationId, Expression[] args) throws XPathException {
+                // Add information about the static context
+                staticBaseUri = context.getStaticBaseURI();
+            }
+            
         };
+    
     }
 
-    private DatabaseClient createMarkLogicClient(String authentication, String user, String password,
-                                                       String database, String server, Integer port) {
+    private DatabaseClient createMarkLogicClient(QueryConfiguration config) {
         DatabaseClientFactory.SecurityContext authContext;
-        switch (authentication) {
+        switch (config.getAuthentication()) {
             case "digest":
-                authContext = new DatabaseClientFactory.DigestAuthContext(user, password);
+                authContext = new DatabaseClientFactory.DigestAuthContext(config.getUser(), config.getPassword());
                 break;
             default:
-                authContext = new DatabaseClientFactory.BasicAuthContext(user, password);
+                authContext = new DatabaseClientFactory.BasicAuthContext(config.getUser(), config.getPassword());
         }
         // Init session
         final DatabaseClient session;
-        if (!(database == null)) {
-            session = DatabaseClientFactory.newClient(server, port, database, authContext);
+        if (!(config.getDatabase() == null)) {
+            session = DatabaseClientFactory.newClient(config.getServer(), config.getPort(), config.getDatabase(), authContext);
         } else {
-            session = DatabaseClientFactory.newClient(server, port, authContext);
+            session = DatabaseClientFactory.newClient(config.getServer(), config.getPort(), authContext);
         }
         return session;
     }
-
-    private String[] checkArgs(Sequence[] sqncs) throws XPathException {
-        String server = null, port = null, user = null, password = null, database = null;
-        String authentication = "basic";
-        switch (sqncs.length) {
-            case 2:
-                try {
-                    TinyElementImpl basexNode = ((TinyElementImpl) sqncs[1].head());
-                    AxisIterator iterator = basexNode.iterateAxis(AxisInfo.CHILD);
-                    for (NodeInfo ni = iterator.next(); ni != null; ni = iterator.next()) {
-                        if (ni.getNodeKind() == Type.ELEMENT) {
-                            switch (ni.getLocalPart()) {
-                                case "server":
-                                    server = ni.getStringValue();
-                                    break;
-                                case "port":
-                                    port = ni.getStringValue();
-                                    break;
-                                case "user":
-                                    user = ni.getStringValue();
-                                    break;
-                                case "password":
-                                    password = ni.getStringValue();
-                                    break;
-                                case "database":
-                                    database = ni.getStringValue();
-                                    break;
-                                case "authentication":
-                                    authentication = ni.getStringValue();
-                                    break;
-                                default:
-                                    throw new XPathException("Children elements of 'marklogic' must be 'server', 'port', 'user', 'password', 'database'? and 'authentication'?.");
-                            }
-                        }
-                    }
-                    return new String[]{
-                            ((StringValue) sqncs[0].head()).getStringValue(),
-                            server,
-                            port,
-                            user,
-                            password,
-                            database,
-                            authentication
-                    };
-                } catch (ClassCastException ex) {
-                    throw new XPathException("When using the 2 parameters signature, the second parameter must be of type: element(marklogic).");
-                }
-            case 5:
-            case 6:
-            case 7:
-                try {
-                    if (sqncs.length == 6) {
-                        database = ((StringValue) sqncs[5].head()).getStringValue();
-                    }
-                    if (sqncs.length == 7) {
-                        database = ((StringValue) sqncs[5].head()).getStringValue();
-                        authentication = ((StringValue) sqncs[6].head()).getStringValue();
-                    }
-                    return new String[]{
-                            ((StringValue) sqncs[0].head()).getStringValue(),
-                            ((StringValue) sqncs[1].head()).getStringValue(),
-                            ((StringValue) sqncs[2].head()).getStringValue(),
-                            ((StringValue) sqncs[3].head()).getStringValue(),
-                            ((StringValue) sqncs[4].head()).getStringValue(),
-                            database,
-                            authentication
-                    };
-                } catch (ClassCastException ex) {
-                    throw new XPathException("When using the 5/6/7 parameters signature, all parameters must be of type: xs:string.");
-                }
-            default:
-                throw new XPathException("Illegal number of arguments. "
-                        + "Arguments are either ($query as xs:string, $config as element(marklogic)), "
-                        + "($query as xs:string, $server as xs:string, $port as xs:string, $user as xs:string, $password as xs:string), "
-                        + "($query as xs:string, $server as xs:string, $port as xs:string, $user as xs:string, $password as xs:string, $database as xs:string), "
-                        + "or ($query as xs:string, $server as xs:string, $port as xs:string, $user as xs:string, $password as xs:string, $database as xs:string, $authentication as xs:string).");
+    
+    private String getXQueryOrModule(Sequence [] args) throws XPathException {
+        // May be a reference to a module, the URI to a local XQuery or a string containing the XQuery
+        String xqueryOrModule = ((StringValue) args[0].head()).getStringValue();
+        return xqueryOrModule;
+    }
+    
+    private InputStreamHandle getXQueryFromURI(XPathContext xpc, String queryUri) throws XPathException {
+        try {
+            // Resolve the XQuery URI if it is relative
+            URI queryUriResolved = URIUtils.resolve(new URI(staticBaseUri), queryUri);
+            StandardUnparsedTextResolver unparsedTextResolver = new StandardUnparsedTextResolver();
+            // Get the XQuery content as unparsed text (Reader -> InputStream -> InputStreamHandle)
+            InputStreamHandle xquery = new InputStreamHandle(new ReaderInputStream(unparsedTextResolver.resolve(queryUriResolved, "UTF-8", xpc.getConfiguration()), "UTF-8"));
+            xquery.setFormat(Format.TEXT);
+            return xquery;
+        }
+        catch (URISyntaxException | XPathException ex) {
+            throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
         }
     }
-	
+    
+    private ServerEvaluationCall addExternalVariables(ServerEvaluationCall call, XPathContext xpc, Processor proc, Sequence[] args) throws XPathException {
+        if (args.length == 3) {
+            QueryExternalVarFactory varFactory = new QueryExternalVarFactory(proc, xpc);
+            ArrayList<QueryExternalVar> externalVars = varFactory.getExternalVariables(args);
+            Iterator<QueryExternalVar> it = externalVars.iterator();
+            while (it.hasNext()) {
+                QueryExternalVar var = it.next();
+                call = var.addToCall(call);
+            }
+        }
+        return call;
+    }
+
 }
