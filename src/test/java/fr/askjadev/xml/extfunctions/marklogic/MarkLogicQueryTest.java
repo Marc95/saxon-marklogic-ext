@@ -23,6 +23,7 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.util.HashMap;
@@ -38,6 +39,8 @@ import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.om.StructuredQName;
+import net.sf.saxon.s9api.Axis;
+import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
@@ -45,9 +48,12 @@ import net.sf.saxon.s9api.XPathCompiler;
 import net.sf.saxon.s9api.XPathSelector;
 import net.sf.saxon.s9api.XdmAtomicValue;
 import net.sf.saxon.s9api.XdmMap;
+import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.SequenceType;
+import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -70,8 +76,6 @@ public class MarkLogicQueryTest {
         this.CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue(System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"))));
         this.CONNECT.put(new XdmAtomicValue("user"), new XdmAtomicValue(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser")));
         this.CONNECT.put(new XdmAtomicValue("password"), new XdmAtomicValue(System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword")));
-        this.CONNECT.put(new XdmAtomicValue("database"), new XdmAtomicValue(System.getProperty("testDatabase") == null ? "Test" : System.getProperty("testDatabase")));
-        this.CONNECT.put(new XdmAtomicValue("authentication"), new XdmAtomicValue(System.getProperty("testAuthentication") == null ? "basic" : System.getProperty("testAuthentication")));
     }
     
     @BeforeClass
@@ -270,9 +274,9 @@ public class MarkLogicQueryTest {
     public void testXSL_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException {
         TransformerFactory factory = TransformerFactory.newInstance();
         TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
-        Configuration config = tFactoryImpl.getConfiguration();
-        Processor processor = (Processor) config.getProcessor();
-        processor.registerExtensionFunction(new MarkLogicQuery());
+        Configuration config = new Configuration();
+        config.registerExtensionFunction(new MarkLogicQuery());
+        tFactoryImpl.setConfiguration(config);
         try {
             Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_OK.xsl").toURI().toString());
             TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
@@ -282,6 +286,45 @@ public class MarkLogicQueryTest {
             transformer.transform(text, new StreamResult(result));
         }
         catch (XPathException | TransformerConfigurationException | URISyntaxException ex) {
+            System.err.println(ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    /**
+     * Test OK with XSL + external variables
+     * @throws XPathException
+     * @throws TransformerConfigurationException
+     * @throws java.net.URISyntaxException
+     * @throws java.io.IOException
+     * @throws net.sf.saxon.s9api.SaxonApiException
+     */
+    @Test
+    public void testXSL_ExternalVar_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException, IOException, SaxonApiException {
+        TransformerFactory factory = TransformerFactory.newInstance();
+        TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
+        Configuration config = new Configuration();
+        config.registerExtensionFunction(new MarkLogicQuery());
+        tFactoryImpl.setConfiguration(config);
+        Processor processor = new Processor(config);
+        try {
+            Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_ExternalVariables_OK.xsl").toURI().toString());
+            TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
+            transformer.setParameter("config", new XdmMap(CONNECT));
+            Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));
+            StringWriter result = new StringWriter();
+            transformer.transform(text, new StreamResult(result));
+            // System.out.println(result.toString());
+            DocumentBuilder builder = processor.newDocumentBuilder();
+            XdmNode resultNode = (XdmNode) builder.build(new StreamSource(IOUtils.toInputStream(result.toString(), "UTF-8")));
+            XdmSequenceIterator it = resultNode.axisIterator(Axis.DESCENDANT, new QName("external-variable"));
+            while (it.hasNext()) {
+                XdmNode element = (XdmNode) it.next();
+                assertEquals("true", element.getAttributeValue(new QName("isTypeAsExpected")));
+            }
+            it.close();
+        }
+        catch (XPathException | TransformerConfigurationException | URISyntaxException | IOException | SaxonApiException ex) {
             System.err.println(ex.getMessage());
             throw ex;
         }

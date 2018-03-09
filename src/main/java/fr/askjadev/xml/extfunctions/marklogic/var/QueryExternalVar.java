@@ -25,6 +25,7 @@ package fr.askjadev.xml.extfunctions.marklogic.var;
 
 import com.marklogic.client.eval.ServerEvaluationCall;
 import fr.askjadev.xml.extfunctions.marklogic.AbstractMLExtensionFunction;
+import java.math.BigDecimal;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.sf.saxon.om.Item;
@@ -111,14 +112,20 @@ public final class QueryExternalVar {
     }
     
     public ServerEvaluationCall addToCall(ServerEvaluationCall call) {
-        Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, qualifiedName);
+        // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, qualifiedName);
         // Register the NS
         call.addNamespace(prefix, namespace);
         // Add the variable to the call
-        if (value instanceof Integer)       { call.addVariable(qualifiedName, (Number) value); }
-        else if (value instanceof Boolean)  { call.addVariable(qualifiedName, (Boolean) value); }
-        else if (value instanceof String)   { call.addVariable(qualifiedName, (String) value); }
-        else                                { call.addVariableAs(qualifiedName, value); }
+        // FIXME: XDBC does not have the capability of passing sequences
+        // A null object is mapped on the null-node() type, which cannot be casted as an empty-sequence() or an optional atomic value (ex. : xs:string?)
+        // As a workaround, we can pass an empty string which will be casted as an xs:untypedAtomic("") -> but there will be an invalid coercion error is the variable has an incompatible type (ex. : xs:integer?, element()?)
+        // See: https://markmail.org/message/yaqjhcgd4skwgp7a
+        if      (value == null)                 { call.addVariable(qualifiedName, ""); }
+        else if (value instanceof Integer)      { call.addVariable(qualifiedName, (Number) value); }
+        else if (value instanceof BigDecimal)   { call.addVariable(qualifiedName, (Number) value); }
+        else if (value instanceof Boolean)      { call.addVariable(qualifiedName, (Boolean) value); }
+        else if (value instanceof String)       { call.addVariable(qualifiedName, (String) value); }
+        else                                    { call.addVariableAs(qualifiedName, value); }
         return call;
     }
     

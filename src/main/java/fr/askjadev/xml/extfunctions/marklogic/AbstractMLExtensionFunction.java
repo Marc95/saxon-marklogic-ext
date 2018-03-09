@@ -124,9 +124,9 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                             xquery.close();
                             break;
                     }
-                    call = addExternalVariables(call, xpc, args);
+                    call = addExternalVariables(call, xpc, proc, args);
                     EvalResultIterator result = call.eval();
-                    MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, session);
+                    MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, xpc, session);
                     return new LazySequence(it);
                 }
                 catch (FailedRequestException | ForbiddenUserException ex) {
@@ -184,9 +184,10 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
         }
     }
     
-    private ServerEvaluationCall addExternalVariables(ServerEvaluationCall call, XPathContext xpc, Sequence[] args) throws XPathException {
+    private ServerEvaluationCall addExternalVariables(ServerEvaluationCall call, XPathContext xpc, Processor proc, Sequence[] args) throws XPathException {
         if (args.length == 3) {
-            ArrayList<QueryExternalVar> externalVars = new QueryExternalVarFactory().getExternalVariables(xpc, args);
+            QueryExternalVarFactory varFactory = new QueryExternalVarFactory(proc, xpc);
+            ArrayList<QueryExternalVar> externalVars = varFactory.getExternalVariables(args);
             Iterator<QueryExternalVar> it = externalVars.iterator();
             while (it.hasNext()) {
                 QueryExternalVar var = it.next();

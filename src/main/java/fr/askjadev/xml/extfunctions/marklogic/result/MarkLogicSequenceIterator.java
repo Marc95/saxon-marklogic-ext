@@ -24,19 +24,18 @@
 package fr.askjadev.xml.extfunctions.marklogic.result;
 
 import com.marklogic.client.DatabaseClient;
+import com.marklogic.client.eval.EvalResult;
 import com.marklogic.client.eval.EvalResultIterator;
-import com.marklogic.client.io.BytesHandle;
 import fr.askjadev.xml.extfunctions.marklogic.AbstractMLExtensionFunction;
-import java.io.ByteArrayInputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.xml.transform.stream.StreamSource;
+import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.s9api.DocumentBuilder;
-import net.sf.saxon.s9api.SaxonApiException;
-import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.type.Type;
 
 /**
  * Utility class MarkLogicSequenceIterator / Query result iterator
@@ -46,33 +45,38 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
 
     private final EvalResultIterator result;
     private final DocumentBuilder builder;
+    private final XPathContext xpathContext;
     private final DatabaseClient session;
     private Integer resultCount;
     private boolean closed = false;
 
-    public MarkLogicSequenceIterator(EvalResultIterator result, DocumentBuilder builder, DatabaseClient session) {
+    public MarkLogicSequenceIterator(EvalResultIterator result, DocumentBuilder builder, XPathContext xpc, DatabaseClient session) {
         super();
         this.result = result;
         this.builder = builder;
+        this.xpathContext = xpc;
         this.session = session;
         this.resultCount = 0;
     }
 
     @Override
     public Item next() throws XPathException {
-        try {
-            if (result.hasNext()) {
-                resultCount++;
-                StreamSource source = new StreamSource(new ByteArrayInputStream(result.next().get(new BytesHandle()).toBuffer()));
-                XdmNode node = builder.build(source);
-                // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, node.toString());
-                return node.getUnderlyingNode();
-            } else {
-                close();
-                return null;
+        if (result.hasNext()) {
+            resultCount++;
+            EvalResult currentResult = result.next();
+            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, currentResult.getType().toString());
+            XdmValue xdmValue = EvalResultConverter.convertToXdmValue(currentResult, builder, xpathContext);
+            if (xdmValue == null) {
+                throw new XPathException("One of the query results could not be converted to a Saxon XdmValue because its type is not supported: " + currentResult.getType());
             }
-        } catch (SaxonApiException ex) {
-            throw new XPathException(ex);
+            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, xdmValue.toString());
+            Item item = xdmValue.getUnderlyingValue().head();
+            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, Type.displayTypeName(item));
+            return item;
+        }
+        else {
+            close();
+            return null;
         }
     }
 
@@ -90,11 +94,6 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
         } catch (Exception ex) {
             Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.SEVERE, null, ex);
         }
-    }
-
-    /* Saxon 9.7 compatibility */
-    public SequenceIterator getAnother() throws XPathException {
-        return null;
     }
 
     @Override

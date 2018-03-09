@@ -1,3 +1,3 @@
-xquery version "3.0";
+xquery version "1.0-ml";
 
 <doc>test</doc>

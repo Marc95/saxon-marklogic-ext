@@ -23,40 +23,44 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic.var;
 
-import com.marklogic.client.io.DOMHandle;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.client.io.Format;
 import com.marklogic.client.io.StringHandle;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import javax.xml.bind.DatatypeConverter;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import net.sf.saxon.dom.DocumentOverNodeInfo;
-import net.sf.saxon.dom.NodeOverNodeInfo;
 import net.sf.saxon.expr.XPathContext;
+import net.sf.saxon.ma.arrays.ArrayItem;
+import net.sf.saxon.ma.arrays.ArrayItemType;
 import net.sf.saxon.ma.map.HashTrieMap;
 import net.sf.saxon.ma.map.KeyValuePair;
-import net.sf.saxon.om.DocumentInfo;
+import net.sf.saxon.ma.map.MapItem;
+import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.NodeInfo;
 import net.sf.saxon.om.Sequence;
 import net.sf.saxon.om.SequenceIterator;
 import net.sf.saxon.pattern.NodeKindTest;
+import net.sf.saxon.s9api.Processor;
+import net.sf.saxon.s9api.SaxonApiException;
+import net.sf.saxon.s9api.Serializer;
 import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.type.BuiltInAtomicType;
 import net.sf.saxon.type.ItemType;
 import net.sf.saxon.type.Type;
+import net.sf.saxon.type.TypeHierarchy;
 import net.sf.saxon.value.Base64BinaryValue;
 import net.sf.saxon.value.BooleanValue;
 import net.sf.saxon.value.HexBinaryValue;
 import net.sf.saxon.value.IntegerValue;
 import net.sf.saxon.value.NumericValue;
 import net.sf.saxon.value.QualifiedNameValue;
-import org.apache.commons.io.IOUtils;
-import org.w3c.dom.Document;
-import org.xml.sax.SAXException;
 
 /**
  * Utility class QueryExternalVarFactory / Get the QueryExternalVar objects from the function call arguments
@@ -64,6 +68,14 @@ import org.xml.sax.SAXException;
  * @author ext-acourt
  */
 public class QueryExternalVarFactory {
+    
+    private final Processor processor;
+    private final XPathContext xpathContext;
+
+    public QueryExternalVarFactory(Processor processor, XPathContext xpathContext) {
+        this.processor = processor;
+        this.xpathContext = xpathContext;
+    }
     
     private final BuiltInAtomicType[] ATOMIC_AS_STRING = {
         BuiltInAtomicType.STRING,
@@ -93,7 +105,7 @@ public class QueryExternalVarFactory {
         BuiltInAtomicType.NON_POSITIVE_INTEGER
     };
     
-    private final BuiltInAtomicType[] ATOMIC_AS_NB = {
+    private final BuiltInAtomicType[] ATOMIC_AS_DEC = {
         BuiltInAtomicType.DOUBLE,
         BuiltInAtomicType.FLOAT
     };
@@ -107,7 +119,7 @@ public class QueryExternalVarFactory {
         BuiltInAtomicType.BOOLEAN
     };
     
-    public ArrayList<QueryExternalVar> getExternalVariables(XPathContext xpc, Sequence[] args) throws XPathException {
+    public ArrayList<QueryExternalVar> getExternalVariables(Sequence[] args) throws XPathException {
         ArrayList<QueryExternalVar> externalVariables = new ArrayList<>();
         try {
             HashTrieMap variableMap = (HashTrieMap) args[2].head();
@@ -128,14 +140,20 @@ public class QueryExternalVarFactory {
                     }
                     sequenceValue.close();
                     variable.setSaxonValue(initialValue);
-                    // Cast the value in a MarkLogic Server compatible format
-                    try {
-                        variable.setValue(getVariableValue(initialValue, xpc));
-                        externalVariables.add(variable);
+                    if (initialValue != null) {
+                        // Cast the value in a MarkLogic Server compatible format
+                        try {
+                            variable.setValue(getVariableValue(initialValue));
+                        }
+                        catch (XPathException ex) {
+                            throw new XPathException("Error while trying to cast external variable " + variableQName.getPrimitiveStringValue() + " : " + ex.getMessage());
+                        }
                     }
-                    catch (XPathException ex) {
-                        throw new XPathException("Error while trying to cast external variable " + variableQName.getPrimitiveStringValue() + " : " + ex.getMessage());
+                    // In case of an empty-sequence()
+                    else {
+                        variable.setValue(null);
                     }
+                    externalVariables.add(variable);
                 }
                 catch (ClassCastException ex) {
                     throw new XPathException("The external variables map keys must be of type xs:QName.");
@@ -148,17 +166,30 @@ public class QueryExternalVarFactory {
         }
     }
 
-    private Object getVariableValue(Item initialValue, XPathContext xpc) throws XPathException {
+    private Object getVariableValue(Item initialValue) throws XPathException {
         Object value = null;
-        ItemType valueType = Type.getItemType(initialValue, xpc.getConfiguration().getTypeHierarchy());
-        if (valueType.isAtomicType()) {
-            value = castAtomicValue(initialValue, valueType);
+        TypeHierarchy th = xpathContext.getConfiguration().getTypeHierarchy();
+        ItemType itemType = Type.getItemType(initialValue, th);
+        Boolean isMapType = MapType.ANY_MAP_TYPE.matches(initialValue, th);
+        Boolean isArrayType = ArrayItemType.ANY_ARRAY_TYPE.matches(initialValue, th);
+        // Atomic value
+        if (itemType.isAtomicType()) {
+            value = castAtomicValue(initialValue, itemType);
         }
-        if (Type.isNodeType(valueType)) {
-            value = castNodeValue(initialValue, valueType);
+        // Node
+        if (Type.isNodeType(itemType)) {
+            value = castNodeValue(initialValue, itemType);
+        }
+        // Map
+        if (isMapType) {
+            value = castMapValue(initialValue, itemType);
+        }
+        // Array
+        if (isArrayType) {
+            value = castArrayValue(initialValue, itemType);
         }
         if (value == null) {
-            throw new XPathException("Incompatible type: " + valueType.toExportString()); 
+            throw new XPathException("Incompatible type: " + itemType.toString()); 
         }
         return value;
     }
@@ -175,15 +206,10 @@ public class QueryExternalVarFactory {
                 return intValue.asBigInteger().intValue();
             }
         }
-        for (BuiltInAtomicType atomicAsNbType : ATOMIC_AS_NB) {
+        for (BuiltInAtomicType atomicAsNbType : ATOMIC_AS_DEC) {
             if (atomicAsNbType.equals(initialValueType)) {
                 NumericValue decValue = (NumericValue) initialValue.atomize();
-                if (initialValueType.equals(BuiltInAtomicType.DOUBLE)) {
-                    return decValue.getDoubleValue();
-                }
-                else if (initialValueType.equals(BuiltInAtomicType.FLOAT)) {
-                    return decValue.getFloatValue();
-                }
+                return decValue.getDecimalValue();
             }
         }
         for (BuiltInAtomicType atomicAsBoolType : ATOMIC_AS_BOOL) {
@@ -211,28 +237,58 @@ public class QueryExternalVarFactory {
         NodeInfo nodeValue = (NodeInfo) initialValue;
         XdmNode node = new XdmNode(nodeValue);
         if (NodeKindTest.ELEMENT.matchesNode(nodeValue)                 ||
+            NodeKindTest.DOCUMENT.matchesNode(nodeValue)                ||
             NodeKindTest.COMMENT.matchesNode(nodeValue)                 ||
             NodeKindTest.PROCESSING_INSTRUCTION.matchesNode(nodeValue)) {
             // Basic string serialization
             return node.toString();
         }
+        // Wrap an attribute node around a dummy element
+        if (NodeKindTest.ATTRIBUTE.matchesNode(nodeValue)) {
+            return "<mkl-ext:dummy-element xmlns:mkl-ext=" + '"' + "fr:askjadev:xml:extfunctions" + '"' + " " + node.toString() + "/>";
+        }
         if (NodeKindTest.TEXT.matchesNode(nodeValue)) {
             return new StringHandle(node.toString()).withFormat(Format.TEXT);
         }
-        if (NodeKindTest.DOCUMENT.matchesNode(nodeValue)) {
-            try {
-                // FIXME: Can't seem to successfully pipe a Saxon DOM Object to the DOMHandle -> NPE
-//                DocumentOverNodeInfo docWrapper = (DocumentOverNodeInfo) NodeOverNodeInfo.wrap(nodeValue);
-//                return new DOMHandle(docWrapper.getOwnerDocument());         
-                // Ugly fix, not optimized
-                Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(IOUtils.toInputStream(node.toString(),"UTF-8"));
-                return new DOMHandle(doc);
-            }
-            catch (ParserConfigurationException | IOException | SAXException ex) {
-                throw new XPathException("Variable value cannot be converted to a DOM Document object.");
-            }
-        }
         return null;
+    }
+
+    private Object castMapValue(Item initialValue, ItemType itemType) throws XPathException {
+        // Good for simple values, probably not for node values...
+        try {
+            XdmValue mapValue = new XdmValue((MapItem) initialValue){};
+            StringWriter jsonString = new StringWriter();
+            Serializer jsonSerializer = processor.newSerializer();
+            jsonSerializer.setOutputWriter(jsonString);
+            jsonSerializer.setOutputProperty(Serializer.Property.METHOD, "json");
+            jsonSerializer.serializeXdmValue(mapValue);
+            ObjectNode jsonNode = (ObjectNode) new ObjectMapper().readTree(jsonString.toString());
+            jsonSerializer.close();
+            jsonString.close();
+            return jsonNode;
+        }
+        catch (IOException | SaxonApiException ex) {
+            throw new  XPathException("Error when trying to transform the map value into a JSON ObjectNode: " + ex.getMessage());
+        }
+    }
+
+    private Object castArrayValue(Item initialValue, ItemType itemType) throws XPathException {
+        // Good for simple values, probably not for node values...
+        try {
+            XdmValue arrayValue = new XdmValue((ArrayItem) initialValue){};
+            StringWriter jsonString = new StringWriter();
+            Serializer jsonSerializer = processor.newSerializer();
+            jsonSerializer.setOutputWriter(jsonString);
+            jsonSerializer.setOutputProperty(Serializer.Property.METHOD, "json");
+            jsonSerializer.serializeXdmValue(arrayValue);
+            ArrayNode arrayNode = (ArrayNode) new ObjectMapper().readTree(jsonString.toString());
+            jsonSerializer.close();
+            jsonString.close();
+            return arrayNode;
+        }
+        catch (IOException | SaxonApiException ex) {
+            throw new  XPathException("Error when trying to transform the array value into a JSON ArrayNode: " + ex.getMessage());
+        }
     }
     
 }

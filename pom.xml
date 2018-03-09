@@ -4,7 +4,7 @@
   
   <groupId>fr.askjadev.xml.extfunctions</groupId>
   <artifactId>marklogic</artifactId>
-  <version>1.0.5-SNAPSHOT</version>
+  <version>1.0.5-98-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Marklogic extension functions</name>
@@ -52,7 +52,7 @@
     <dependency>
       <groupId>net.sf.saxon</groupId>
       <artifactId>Saxon-HE</artifactId>
-      <version>9.8.0-7</version>
+      <version>9.8.0-8</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
