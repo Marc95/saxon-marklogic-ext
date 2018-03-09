@@ -12,7 +12,7 @@ The extensions may be registered:
 They are also <a href=https://github.com/cmarchand/gaulois-pipe>gaulois-pipe</a> services. The jar just has to be in the classpath for the functions to be used with gaulois-pipe.
 
 
-The project is officially built around *Saxon 9.8* (HE/PE/EE).
+The project is officially built around *Saxon 9.8* (HE/PE/EE) and XSLT 3.0.
 There is also a Saxon 9.7 compatible version that is maintained on a separate branch.
 
 
@@ -23,48 +23,51 @@ There is also a Saxon 9.7 compatible version that is maintained on a separate br
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQuery</tt>
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query(
-  "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
-  map{
-    "server":"localhost",
-    "port":8004,
-    "user":"admin",
-    "password":"admin"
-  }
-);</pre>
+<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query(
+    "for $i in 1 to 10 return&lt;test&gt;{$i}&lt;/test&gt;",
+    map{
+      "server":"localhost",
+      "port":8004,
+      "user":"admin",
+      "password":"admin"
+    }
+  )"
+/></pre>
 
 
 ### Invoke an XQuery module already deployed on MarkLogic Server
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query-invoke(
-  "/path/to/module.xqy",
-  map{
-    "server":"localhost",
-    "port":8004,
-    "user":"admin",
-    "password":"admin"
-  }
-);</pre>
+<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-invoke(
+    "/path/to/module.xqy",
+    map{
+      "server":"localhost",
+      "port":8004,
+      "user":"admin",
+      "password":"admin"
+    }
+  )"
+/></pre>
 
 
 ### Read an XQuery file from an URI and run it
 
 Java class: <tt>fr.askjadev.xml.extfunctions.marklogic.MarkLogicQueryInvoke</tt>
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query-invoke(
-  "file:/path/to/file.xqy",
-  map{
-    "server":"localhost",
-    "port":8004,
-    "user":"admin",
-    "password":"admin"
-  }
-);</pre>
+<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-invoke(
+    "file:/path/to/file.xqy",
+    map{
+      "server":"localhost",
+      "port":8004,
+      "user":"admin",
+      "password":"admin"
+    }
+  )"
+/></pre>
 
 
 ### Additional information
@@ -87,22 +90,30 @@ Most of the XDM atomic and node types are supported (including maps and arrays),
 
 Example :
 
-<pre>declare namespace mkl-ext = 'fr:askjadev:xml:extfunctions';
-mkl-ext:marklogic-query-invoke(
-  "file:/path/to/file.xqy",
-  $configMap,
-  map{
-     QName("http://namespace","pre:string"):"string value",
-     QName("http://namespace","pre:integer"):1
-  }
-);</pre>
+<pre><xsl:sequence xmlns:mkl-ext="fr:askjadev:xml:extfunctions" select="
+  mkl-ext:marklogic-query-invoke(
+    "file:/path/to/file.xqy",
+    $configMap,
+    map{
+       QName("http://namespace","pre:string"):"string value",
+       QName("http://namespace","pre:integer"):1
+    }
+  )"
+/>
+</pre>
+
+<pre>declare namespace pre = 'http://namespace';
+declare variable $pre:string as xs:string external;
+declare variable $pre:integer as xs:string external;
+[...]
+</pre>
 
 The query can return node(s) (except attributes) or atomic value(s), though there might be some unsupported ones or restrictions of usage.
 
 
 ## Current version (for Saxon 9.8): 1.0.5-98
 
-### Alternative version (for Saxon 9.7 PE/EE): 1.0.5-97
+### Alternative version (for Saxon 9.7): 1.0.5-97
 
 Maven support:
 
