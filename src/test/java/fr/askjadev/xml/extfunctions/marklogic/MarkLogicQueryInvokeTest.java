@@ -46,7 +46,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import net.sf.saxon.TransformerFactoryImpl;
-import net.sf.saxon.expr.EarlyEvaluationContext;
 import net.sf.saxon.jaxp.TransformerImpl;
 import net.sf.saxon.ma.map.HashTrieMap;
 import net.sf.saxon.ma.map.MapType;
@@ -89,8 +88,7 @@ public class MarkLogicQueryInvokeTest {
         String password = System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword");
         this.configuration = new Configuration();
         this.processor = new Processor(configuration);
-        EarlyEvaluationContext xpathContext = new EarlyEvaluationContext(configuration);
-        HashTrieMap serverConfig = new HashTrieMap(xpathContext); 
+        HashTrieMap serverConfig = new HashTrieMap(); 
         serverConfig = serverConfig.addEntry(new StringValue("server"), new StringValue(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer")));
         serverConfig = serverConfig.addEntry(new StringValue("port"), (IntegerValue) new BigIntegerValue(System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"))));
         serverConfig = serverConfig.addEntry(new StringValue("user"), new StringValue(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser")));
@@ -225,7 +223,7 @@ public class MarkLogicQueryInvokeTest {
             xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();
         }
-        catch (XPathException | SaxonApiException ex) {
+        catch (SaxonApiException ex) {
             System.err.println(ex.getMessage());
             throw ex;
         }
@@ -250,7 +248,7 @@ public class MarkLogicQueryInvokeTest {
             xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();
         }
-        catch (XPathException | SaxonApiException ex) {
+        catch (SaxonApiException ex) {
             System.err.println(ex.getMessage());
             throw ex;
         }

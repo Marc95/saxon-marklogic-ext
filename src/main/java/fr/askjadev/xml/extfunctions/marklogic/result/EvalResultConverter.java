@@ -43,7 +43,6 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.EmptySequence;
-import net.sf.saxon.z.IntValuePredicate;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -146,7 +145,7 @@ public class EvalResultConverter {
             // Good for simple values, probably not for node values...
             if (evalResult.getType().equals(EvalResult.Type.JSON)) {
                 JsonHandlerMap jsonHandler = new JsonHandlerMap(xpc, JsonParser.LIBERAL);
-                JsonParser jsonParser = new JsonParser(new IntValuePredicate(JsonParser.LIBERAL));
+                JsonParser jsonParser = new JsonParser();
                 jsonParser.parse(evalResult.getString(), JsonParser.LIBERAL, jsonHandler, xpc);
                 Item mapOrArrayItem = jsonHandler.getResult().head();
                 XdmValue mapOrArrayXdmValue = XdmValue.wrap(mapOrArrayItem);
