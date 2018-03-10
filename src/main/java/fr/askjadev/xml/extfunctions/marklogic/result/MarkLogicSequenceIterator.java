@@ -100,5 +100,10 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
     public int getProperties() {
         return 0;
     }
+    
+    @Override
+    public SequenceIterator getAnother() throws XPathException {
+        return null;
+    }
 	
 }

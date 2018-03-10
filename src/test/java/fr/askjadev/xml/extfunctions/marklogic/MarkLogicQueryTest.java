@@ -26,7 +26,6 @@ package fr.askjadev.xml.extfunctions.marklogic;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import javax.xml.transform.Source;
 import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerFactory;
@@ -34,7 +33,9 @@ import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.TransformerFactoryImpl;
+import net.sf.saxon.expr.EarlyEvaluationContext;
 import net.sf.saxon.jaxp.TransformerImpl;
+import net.sf.saxon.ma.map.HashTrieMap;
 import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.Item;
 import net.sf.saxon.om.SequenceIterator;
@@ -47,12 +48,14 @@ import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.XPathCompiler;
 import net.sf.saxon.s9api.XPathSelector;
 import net.sf.saxon.s9api.XdmAtomicValue;
-import net.sf.saxon.s9api.XdmMap;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
+import net.sf.saxon.value.BigIntegerValue;
+import net.sf.saxon.value.IntegerValue;
 import net.sf.saxon.value.SequenceType;
+import net.sf.saxon.value.StringValue;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -67,15 +70,21 @@ import static org.junit.Assert.*;
  */
 public class MarkLogicQueryTest {
     
-    private final HashMap<XdmAtomicValue, XdmAtomicValue> CONNECT;
+    private final HashTrieMap CONNECT;
+    private final Configuration configuration;
+    private final Processor processor;
     
-    public MarkLogicQueryTest() {
+    public MarkLogicQueryTest() throws XPathException {
         super();
-        this.CONNECT = new HashMap<>();
-        this.CONNECT.put(new XdmAtomicValue("server"), new XdmAtomicValue(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer")));
-        this.CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue(System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"))));
-        this.CONNECT.put(new XdmAtomicValue("user"), new XdmAtomicValue(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser")));
-        this.CONNECT.put(new XdmAtomicValue("password"), new XdmAtomicValue(System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword")));
+        this.configuration = new Configuration();
+        this.processor = new Processor(configuration);
+        EarlyEvaluationContext xpathContext = new EarlyEvaluationContext(configuration);
+        HashTrieMap serverConfig = new HashTrieMap(xpathContext); 
+        serverConfig = serverConfig.addEntry(new StringValue("server"), new StringValue(System.getProperty("testServer") == null ? "localhost" : System.getProperty("testServer")));
+        serverConfig = serverConfig.addEntry(new StringValue("port"), (IntegerValue) new BigIntegerValue(System.getProperty("testPort") == null ? 8004 : Integer.parseInt(System.getProperty("testPort"))));
+        serverConfig = serverConfig.addEntry(new StringValue("user"), new StringValue(System.getProperty("testUser") == null ? "admin" : System.getProperty("testUser")));
+        serverConfig = serverConfig.addEntry(new StringValue("password"), new StringValue(System.getProperty("testPassword") == null ? "admin" : System.getProperty("testPassword")));
+        this.CONNECT = serverConfig;
     }
     
     @BeforeClass
@@ -160,16 +169,14 @@ public class MarkLogicQueryTest {
      */
     @Test
     public void testQueryModule2Args() throws XPathException, SaxonApiException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        XPathCompiler xpc = processor.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
             QName var = new QName("config");
             xpc.declareVariable(var);
             XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
-            XdmMap xqConfig = new XdmMap(CONNECT);
+            XdmValue xqConfig = XdmValue.wrap(CONNECT);
             xp.setVariable(var, xqConfig);
             XdmValue result = xp.evaluate();
             SequenceIterator it = result.getUnderlyingValue().iterate();
@@ -188,52 +195,50 @@ public class MarkLogicQueryTest {
     }
     
     /**
-     * Test KO / Argument with wrong type inside config map
+     * Test KO / Argument with wrong type inside configuration map
      * @throws SaxonApiException
+     * @throws net.sf.saxon.trans.XPathException
      */
     @Test(expected = SaxonApiException.class)
-    public void testQueryModule2Args_WrongParamType() throws SaxonApiException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
+    public void testQueryModule2Args_WrongParamType() throws SaxonApiException, XPathException {
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        XPathCompiler xpc = processor.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
             QName var = new QName("config");
             xpc.declareVariable(var);
             XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
-            CONNECT.put(new XdmAtomicValue("port"), new XdmAtomicValue("string"));
-            XdmMap xqConfig = new XdmMap(CONNECT);
+            HashTrieMap serverConfig = CONNECT.addEntry(new StringValue("port"), new StringValue("string"));
+            XdmValue xqConfig = XdmValue.wrap(serverConfig);
             xp.setVariable(var, xqConfig);
             xp.evaluate();
         }
-        catch (SaxonApiException ex) {
+        catch (XPathException | SaxonApiException ex) {
             System.err.println(ex.getMessage());
             throw ex;
         }
     }
     
     /**
-     * Test KO / Missing mandatory argument inside config map
+     * Test KO / Missing mandatory argument inside configuration map
      * @throws SaxonApiException
+     * @throws net.sf.saxon.trans.XPathException
      */
     @Test(expected = SaxonApiException.class)
-    public void testQueryModule2Args_MissingParam() throws SaxonApiException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
+    public void testQueryModule2Args_MissingParam() throws SaxonApiException, XPathException {
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        XPathCompiler xpc = processor.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
             QName var = new QName("config");
             xpc.declareVariable(var);
             XPathSelector xp = xpc.compile(MarkLogicQuery.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQuery.FUNCTION_NAME + "('for $i in 1 to 10 return <test>{$i}</test>', $config)").load();
-            CONNECT.remove(new XdmAtomicValue("server"));
-            XdmMap xqConfig = new XdmMap(CONNECT);
+            HashTrieMap serverConfig = CONNECT.remove(new StringValue("server"));
+            XdmValue xqConfig = XdmValue.wrap(serverConfig);
             xp.setVariable(var, xqConfig);
             xp.evaluate();
         }
-        catch (SaxonApiException ex) {
+        catch (XPathException | SaxonApiException ex) {
             System.err.println(ex.getMessage());
             throw ex;
         }
@@ -245,10 +250,8 @@ public class MarkLogicQueryTest {
      */
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_BadArgument() throws SaxonApiException {
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        Processor proc = new Processor(config);
-        XPathCompiler xpc = proc.newXPathCompiler();
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        XPathCompiler xpc = processor.newXPathCompiler();
         try {
             xpc.declareNamespace(MarkLogicQuery.EXT_NS_COMMON_PREFIX, MarkLogicQuery.EXT_NAMESPACE_URI);
             QName var = new QName("config");
@@ -274,13 +277,12 @@ public class MarkLogicQueryTest {
     public void testXSL_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException {
         TransformerFactory factory = TransformerFactory.newInstance();
         TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        tFactoryImpl.setConfiguration(config);
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        tFactoryImpl.setConfiguration(configuration);
         try {
             Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_OK.xsl").toURI().toString());
             TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
-            transformer.setParameter("config", new XdmMap(CONNECT));
+            transformer.setParameter("config", CONNECT);
             Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));
             StringWriter result = new StringWriter();
             transformer.transform(text, new StreamResult(result));
@@ -303,14 +305,12 @@ public class MarkLogicQueryTest {
     public void testXSL_ExternalVar_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException, IOException, SaxonApiException {
         TransformerFactory factory = TransformerFactory.newInstance();
         TransformerFactoryImpl tFactoryImpl = (TransformerFactoryImpl) factory;
-        Configuration config = new Configuration();
-        config.registerExtensionFunction(new MarkLogicQuery());
-        tFactoryImpl.setConfiguration(config);
-        Processor processor = new Processor(config);
+        configuration.registerExtensionFunction(new MarkLogicQuery());
+        tFactoryImpl.setConfiguration(configuration);
         try {
             Source xslt = new StreamSource(this.getClass().getClassLoader().getResource("MarkLogicQueryTest_ExternalVariables_OK.xsl").toURI().toString());
             TransformerImpl transformer = (TransformerImpl) factory.newTransformer(xslt);
-            transformer.setParameter("config", new XdmMap(CONNECT));
+            transformer.setParameter("config", CONNECT);
             Source text = new StreamSource(this.getClass().getClassLoader().getResourceAsStream("MarkLogicQuery_DummySource.xml"));
             StringWriter result = new StringWriter();
             transformer.transform(text, new StreamResult(result));

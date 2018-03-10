@@ -256,7 +256,7 @@ public class QueryExternalVarFactory {
     private Object castMapValue(Item initialValue, ItemType itemType) throws XPathException {
         // Good for simple values, probably not for node values...
         try {
-            XdmValue mapValue = new XdmValue((MapItem) initialValue){};
+            XdmValue mapValue = XdmValue.wrap((MapItem) initialValue);
             StringWriter jsonString = new StringWriter();
             Serializer jsonSerializer = processor.newSerializer();
             jsonSerializer.setOutputWriter(jsonString);
@@ -275,7 +275,7 @@ public class QueryExternalVarFactory {
     private Object castArrayValue(Item initialValue, ItemType itemType) throws XPathException {
         // Good for simple values, probably not for node values...
         try {
-            XdmValue arrayValue = new XdmValue((ArrayItem) initialValue){};
+            XdmValue arrayValue = XdmValue.wrap((ArrayItem) initialValue);
             StringWriter jsonString = new StringWriter();
             Serializer jsonSerializer = processor.newSerializer();
             jsonSerializer.setOutputWriter(jsonString);

@@ -43,6 +43,7 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.EmptySequence;
+import net.sf.saxon.z.IntValuePredicate;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -145,16 +146,16 @@ public class EvalResultConverter {
             // Good for simple values, probably not for node values...
             if (evalResult.getType().equals(EvalResult.Type.JSON)) {
                 JsonHandlerMap jsonHandler = new JsonHandlerMap(xpc, JsonParser.LIBERAL);
-                JsonParser jsonParser = new JsonParser();
+                JsonParser jsonParser = new JsonParser(new IntValuePredicate(JsonParser.LIBERAL));
                 jsonParser.parse(evalResult.getString(), JsonParser.LIBERAL, jsonHandler, xpc);
                 Item mapOrArrayItem = jsonHandler.getResult().head();
-                XdmValue mapOrArrayXdmValue = new XdmValue(mapOrArrayItem){};
+                XdmValue mapOrArrayXdmValue = XdmValue.wrap(mapOrArrayItem);
                 return mapOrArrayXdmValue;
             }
             // MarkLogic explicit null-node() -> sent as an empty-sequence() to Saxon 
             // If the XQuery result is an actual empty-sequence(), nothing is returned
             if (evalResult.getType().equals(EvalResult.Type.NULL)) {
-                return new XdmValue(EmptySequence.getInstance().asItem()){};
+                return XdmValue.wrap(EmptySequence.getInstance());
             }
             return null;
         }
