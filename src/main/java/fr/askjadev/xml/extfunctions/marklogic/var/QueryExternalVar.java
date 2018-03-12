@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ import net.sf.saxon.om.Item;
 
 /**
  * Utility class QueryExternalVar / External variable that must be provided to the XQuery
- * @author ext-acourt
+ * @author Axel Court
  */
 public final class QueryExternalVar {
     

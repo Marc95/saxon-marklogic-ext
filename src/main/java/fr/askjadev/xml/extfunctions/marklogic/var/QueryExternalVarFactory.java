@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,7 +65,7 @@ import net.sf.saxon.value.QualifiedNameValue;
 /**
  * Utility class QueryExternalVarFactory / Get the QueryExternalVar objects from the function call arguments
  * See test class EvalTest in MarkLogic Java client API for data conversion examples.
- * @author ext-acourt
+ * @author Axel Court
  */
 public class QueryExternalVarFactory {
     
@@ -123,40 +123,43 @@ public class QueryExternalVarFactory {
         ArrayList<QueryExternalVar> externalVariables = new ArrayList<>();
         try {
             HashTrieMap variableMap = (HashTrieMap) args[2].head();
-            Iterator<KeyValuePair> iterator = variableMap.iterator();
-            while (iterator.hasNext()) {
-                KeyValuePair kv = iterator.next();
-                try {
-                    QualifiedNameValue variableQName = (QualifiedNameValue) kv.key;
-                    QueryExternalVar variable = new QueryExternalVar(
-                            variableQName.getNamespaceURI(),
-                            variableQName.getPrefix(),
-                            variableQName.getLocalName()
-                    );
-                    SequenceIterator sequenceValue = kv.value.iterate();
-                    Item initialValue = sequenceValue.next();
-                    if (sequenceValue.next() != null) {
-                        throw new XPathException("The external variables supplied to the query can not be multivalued: see variable " + variableQName.getPrimitiveStringValue() + ".");
-                    }
-                    sequenceValue.close();
-                    variable.setSaxonValue(initialValue);
-                    if (initialValue != null) {
-                        // Cast the value in a MarkLogic Server compatible format
-                        try {
-                            variable.setValue(getVariableValue(initialValue));
+            // variableMap == null if args[2] is an empty-sequence
+            if (variableMap != null) {
+                Iterator<KeyValuePair> iterator = variableMap.iterator();
+                while (iterator.hasNext()) {
+                    KeyValuePair kv = iterator.next();
+                    try {
+                        QualifiedNameValue variableQName = (QualifiedNameValue) kv.key;
+                        QueryExternalVar variable = new QueryExternalVar(
+                                variableQName.getNamespaceURI(),
+                                variableQName.getPrefix(),
+                                variableQName.getLocalName()
+                        );
+                        SequenceIterator sequenceValue = kv.value.iterate();
+                        Item initialValue = sequenceValue.next();
+                        if (sequenceValue.next() != null) {
+                            throw new XPathException("The external variables supplied to the query can not be multivalued: see variable " + variableQName.getPrimitiveStringValue() + ".");
                         }
-                        catch (XPathException ex) {
-                            throw new XPathException("Error while trying to cast external variable " + variableQName.getPrimitiveStringValue() + " : " + ex.getMessage());
+                        sequenceValue.close();
+                        variable.setSaxonValue(initialValue);
+                        if (initialValue != null) {
+                            // Cast the value in a MarkLogic Server compatible format
+                            try {
+                                variable.setValue(getVariableValue(initialValue));
+                            }
+                            catch (XPathException ex) {
+                                throw new XPathException("Error while trying to cast external variable " + variableQName.getPrimitiveStringValue() + " : " + ex.getMessage());
+                            }
                         }
+                        // In case of an empty-sequence()
+                        else {
+                            variable.setValue(null);
+                        }
+                        externalVariables.add(variable);
                     }
-                    // In case of an empty-sequence()
-                    else {
-                        variable.setValue(null);
+                    catch (ClassCastException ex) {
+                        throw new XPathException("The external variables map keys must be of type xs:QName.");
                     }
-                    externalVariables.add(variable);
-                }
-                catch (ClassCastException ex) {
-                    throw new XPathException("The external variables map keys must be of type xs:QName.");
                 }
             }
             return externalVariables;

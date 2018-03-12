@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,10 +36,13 @@ import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfigurationFactory;
 import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVar;
 import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVarFactory;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.sf.saxon.expr.Expression;
 import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
@@ -171,15 +174,21 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
     
     private InputStreamHandle getXQueryFromURI(XPathContext xpc, String queryUri) throws XPathException {
         try {
+            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, queryUri);
             // Resolve the XQuery URI if it is relative
             URI queryUriResolved = URIUtils.resolve(new URI(staticBaseUri), queryUri);
+            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, queryUriResolved.toString());
+            // Try to detect early when the URL points to nothing -> otherwise there can be a NullPointerException raised by StandardUnparsedTextResolver.connect()
+            if (queryUriResolved.toURL().openConnection().getInputStream() == null) {
+                throw new IOException("File not found: " + queryUriResolved.toString());
+            }
+            // Get the XQuery content as unparsed text using Saxon convenient StandardUnparsedTextResolver class (Reader -> InputStream -> InputStreamHandle)
             StandardUnparsedTextResolver unparsedTextResolver = new StandardUnparsedTextResolver();
-            // Get the XQuery content as unparsed text (Reader -> InputStream -> InputStreamHandle)
             InputStreamHandle xquery = new InputStreamHandle(new ReaderInputStream(unparsedTextResolver.resolve(queryUriResolved, "UTF-8", xpc.getConfiguration()), "UTF-8"));
             xquery.setFormat(Format.TEXT);
             return xquery;
         }
-        catch (URISyntaxException | XPathException ex) {
+        catch (URISyntaxException | IOException ex) {
             throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
         }
     }
