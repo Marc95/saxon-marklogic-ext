@@ -188,7 +188,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
             xquery.setFormat(Format.TEXT);
             return xquery;
         }
-        catch (URISyntaxException | IOException ex) {
+        catch (URISyntaxException | IOException | XPathException ex) {
             throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
         }
     }
