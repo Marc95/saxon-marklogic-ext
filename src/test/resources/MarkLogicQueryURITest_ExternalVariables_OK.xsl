@@ -37,7 +37,7 @@
       <external-variable name="pre:doc" as="document-node()" isTypeAsExpected="{if ($result[16] instance of document-node()) then true() else false()}"><xsl:sequence select="$result[16]/*"/></external-variable>
       <external-variable name="pre:map" as="map(*)" isTypeAsExpected="{if ($result[17] instance of map(*)) then true() else false()}"><xsl:sequence select="serialize($result[17],map{'method':'json'})"/></external-variable>
       <external-variable name="pre:array" as="array(*)" isTypeAsExpected="{if ($result[18] instance of array(*)) then true() else false()}"><xsl:sequence select="serialize($result[18],map{'method':'json'})"/></external-variable>
-      <external-variable name="pre:empty" as="empty-sequence()" isTypeAsExpected="{if ($result[19] instance of empty-sequence()) then true() else false()}"><xsl:sequence select="$result[19]"/></external-variable>
+      <external-variable name="varNoPrefix" as="xs:string" isTypeAsExpected="{if ($result[19] instance of xs:string) then true() else false()}"><xsl:sequence select="$result[19]"/></external-variable>
     </external-variables>
     
   </xsl:template>

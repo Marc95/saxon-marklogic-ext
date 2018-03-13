@@ -56,7 +56,7 @@ public final class QueryExternalVar {
         this.namespace = namespace;
         this.prefix = prefix;
         this.name = name;
-        setQualifiedName();
+        setQualifiedName(prefix, name);
     }
 
     public void setNamespace(String namespace) {
@@ -75,8 +75,13 @@ public final class QueryExternalVar {
         this.qualifiedName = qualifiedName;
     }
     
-    public void setQualifiedName() {
-        this.qualifiedName = getPrefix() + ":" + getName();
+    public void setQualifiedName(String prefix, String name) {
+        if (prefix == null || prefix.isEmpty()) {
+            this.qualifiedName = name;
+        }
+        else {
+            this.qualifiedName = prefix + ":" + name;
+        }
     }
 
     public void setValue(Object value) {
