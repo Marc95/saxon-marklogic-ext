@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ import net.sf.saxon.value.IntegerValue;
 
 /**
  * Utility class QueryConfigurationFactory / Methods to instantiate a QueryConfiguration from the function call arguments
- * @author ext-acourt
+ * @author Axel Court
  */
 public class QueryConfigurationFactory {
     

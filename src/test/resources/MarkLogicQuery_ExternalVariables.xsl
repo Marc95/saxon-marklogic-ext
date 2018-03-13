@@ -55,7 +55,8 @@
                   QName('http://namespace','pre:doc')       : $doc,
                   QName('http://namespace','pre:map')       : map{'toto':'titi','tata':$element},
                   QName('http://namespace','pre:array')     : [1,2,'toto',['titi',3]],
-                  QName('http://namespace','pre:empty')     : ()
+                  QName('http://namespace','pre:empty')     : (),
+                  xs:QName('varNoPrefix')                   : 'variable no prefix'
                 }"/>
 
 </xsl:stylesheet>

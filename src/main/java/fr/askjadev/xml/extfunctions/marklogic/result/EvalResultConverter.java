@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -151,8 +151,9 @@ public class EvalResultConverter {
                 XdmValue mapOrArrayXdmValue = XdmValue.wrap(mapOrArrayItem);
                 return mapOrArrayXdmValue;
             }
-            // MarkLogic explicit null-node() -> sent as an empty-sequence() to Saxon 
+            // MarkLogic explicit NULL object -> sent as an empty-sequence() to Saxon
             // If the XQuery result is an actual empty-sequence(), nothing is returned
+            // FIXME: Cannot seem to reproduce the way to throw a NULL object -> null-node() in the XQuery does not send a NULL object
             if (evalResult.getType().equals(EvalResult.Type.NULL)) {
                 return XdmValue.wrap(EmptySequence.getInstance());
             }

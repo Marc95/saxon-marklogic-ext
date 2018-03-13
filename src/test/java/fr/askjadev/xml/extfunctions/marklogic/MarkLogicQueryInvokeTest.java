@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 EXT-acourt.
+ * Copyright 2017 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -60,9 +60,9 @@ import static org.junit.Assert.assertEquals;
 import org.junit.BeforeClass;
 
 /**
- * Query invoke test NB: user needs to be rest-admin in MarkLogic
- *
- * @author Emmanuel Tourdot
+ * Test class for MarkLogicQuery
+ * NB: user needs to be rest-admin in MarkLogic
+ * @author Emmanuel Tourdot, Axel Court
  */
 public class MarkLogicQueryInvokeTest {
 
@@ -178,8 +178,8 @@ public class MarkLogicQueryInvokeTest {
 
     /**
      * Test of makeCallExpression method.
-     * @throws net.sf.saxon.trans.XPathException
-     * @throws net.sf.saxon.s9api.SaxonApiException
+     * @throws XPathException
+     * @throws SaxonApiException
      */
     @Test
     public void testInvokeModule2Args() throws XPathException, SaxonApiException {
@@ -207,7 +207,7 @@ public class MarkLogicQueryInvokeTest {
     /**
      * Test KO / Argument with wrong type inside config map
      * @throws SaxonApiException
-     * @throws net.sf.saxon.trans.XPathException
+     * @throws XPathException
      */
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_WrongParamType() throws SaxonApiException, XPathException {
@@ -232,7 +232,7 @@ public class MarkLogicQueryInvokeTest {
     /**
      * Test KO / Missing mandatory argument inside config map
      * @throws SaxonApiException
-     * @throws net.sf.saxon.trans.XPathException
+     * @throws XPathException
      */
     @Test(expected = SaxonApiException.class)
     public void testQueryModule2Args_MissingParam() throws SaxonApiException, XPathException {
@@ -278,10 +278,67 @@ public class MarkLogicQueryInvokeTest {
     }
     
     /**
+     * Test KO / 3rd argument has a wrong type
+     * @throws SaxonApiException
+     */
+    @Test(expected = SaxonApiException.class)
+    public void testQueryModule2Args_3dArgBadType() throws SaxonApiException {
+        configuration.registerExtensionFunction(new MarkLogicQueryInvoke());
+        XPathCompiler xpc = processor.newXPathCompiler();
+        try {
+            xpc.declareNamespace(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX, MarkLogicQueryInvoke.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varExtVars = new QName("extVars");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varExtVars);
+            XPathSelector xp = xpc.compile(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME + "('/ext/test/MarkLogicQueryInvokeTest.xqy', $config, $extVars)").load();
+            XdmValue xqConfig = XdmValue.wrap(CONNECT);
+            xp.setVariable(varConf, xqConfig);
+            xp.setVariable(varExtVars, new XdmAtomicValue("string"));
+            xp.evaluate();
+        }
+        catch (SaxonApiException ex) {
+            System.err.println(ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    /**
+     * Test OK / 3rd argument is an empty sequence
+     * @throws SaxonApiException
+     * @throws XPathException
+     */
+    @Test
+    public void testQueryModule2Args_3dArgEmptySeq() throws SaxonApiException, XPathException {
+        configuration.registerExtensionFunction(new MarkLogicQueryInvoke());
+        XPathCompiler xpc = processor.newXPathCompiler();
+        try {
+            xpc.declareNamespace(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX, MarkLogicQueryInvoke.EXT_NAMESPACE_URI);
+            QName varConf = new QName("config");
+            QName varExtVars = new QName("extVars");
+            xpc.declareVariable(varConf);
+            xpc.declareVariable(varExtVars);
+            XPathSelector xp = xpc.compile(MarkLogicQueryInvoke.EXT_NS_COMMON_PREFIX + ":" + MarkLogicQueryInvoke.FUNCTION_NAME + "('/ext/test/MarkLogicQueryInvokeTest.xqy', $config, $extVars)").load();
+            XdmValue xqConfig = XdmValue.wrap(CONNECT);
+            xp.setVariable(varConf, xqConfig);
+            xp.setVariable(varExtVars, XdmEmptySequence.getInstance());
+            XdmValue result = xp.evaluate();
+            SequenceIterator it = result.getUnderlyingValue().iterate();
+            Item item = it.next();
+            assertEquals("test", item.getStringValue());
+            it.close();
+        }
+        catch (SaxonApiException | XPathException ex) {
+            System.err.println(ex.getMessage());
+            throw ex;
+        }
+    }
+    
+    /**
      * Test OK with XSL
      * @throws XPathException
      * @throws TransformerConfigurationException
-     * @throws java.net.URISyntaxException
+     * @throws URISyntaxException
      */
     @Test
     public void testXSL_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException {
@@ -307,7 +364,7 @@ public class MarkLogicQueryInvokeTest {
      * Test KO with XSL - XQuery module not found
      * @throws XPathException
      * @throws TransformerConfigurationException
-     * @throws java.net.URISyntaxException
+     * @throws URISyntaxException
      */
     @Test(expected = XPathException.class)
     public void testXSL_QueryKO_FileNotFound() throws XPathException, TransformerConfigurationException, URISyntaxException {
@@ -333,9 +390,9 @@ public class MarkLogicQueryInvokeTest {
      * Test OK with XSL + external variables
      * @throws XPathException
      * @throws TransformerConfigurationException
-     * @throws java.net.URISyntaxException
-     * @throws java.io.IOException
-     * @throws net.sf.saxon.s9api.SaxonApiException
+     * @throws URISyntaxException
+     * @throws IOException
+     * @throws SaxonApiException
      */
     @Test
     public void testXSL_ExternalVar_QueryOK() throws XPathException, TransformerConfigurationException, URISyntaxException, IOException, SaxonApiException {

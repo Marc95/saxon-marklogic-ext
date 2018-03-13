@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2018 ext-acourt.
+ * Copyright 2018 Axel Court.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ import net.sf.saxon.om.Item;
 
 /**
  * Utility class QueryExternalVar / External variable that must be provided to the XQuery
- * @author ext-acourt
+ * @author Axel Court
  */
 public final class QueryExternalVar {
     
@@ -56,7 +56,7 @@ public final class QueryExternalVar {
         this.namespace = namespace;
         this.prefix = prefix;
         this.name = name;
-        setQualifiedName();
+        setQualifiedName(prefix, name);
     }
 
     public void setNamespace(String namespace) {
@@ -75,8 +75,13 @@ public final class QueryExternalVar {
         this.qualifiedName = qualifiedName;
     }
     
-    public void setQualifiedName() {
-        this.qualifiedName = getPrefix() + ":" + getName();
+    public void setQualifiedName(String prefix, String name) {
+        if (prefix == null || prefix.isEmpty()) {
+            this.qualifiedName = name;
+        }
+        else {
+            this.qualifiedName = prefix + ":" + name;
+        }
     }
 
     public void setValue(Object value) {
