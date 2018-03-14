@@ -117,9 +117,9 @@ let $pre:comment := $pre:comment/comment()
 The query can return node(s) (except attributes) or atomic value(s), though there might be some unsupported ones or restrictions of usage.
 
 
-## Current version (for Saxon 9.8): 1.0.5-98
+## Current version (for Saxon 9.8): 1.0.6-98
 
-### Alternative version (for Saxon 9.7): 1.0.5-97
+### Alternative version (for Saxon 9.7): 1.0.6-97
 
 Maven support:
 
