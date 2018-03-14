@@ -86,7 +86,10 @@ There is also a third parameter that can be supplied as a XPath 3.0 map containi
 - each key is a <tt>xs:QName</tt> matching an external variable declaration in the XQuery script ;
 - each value must be a singleton or empty sequence (because of restrictions in the MarkLogic Java API).
 
-Most of the XDM atomic and node types are supported (including maps and arrays), though there might be some unsupported ones or restrictions of usage. For instance, an <tt>empty-sequence()</tt> is sent as a <tt>xs:anyAtomicType("")</tt> to MarkLogic and thus cannot be casted as a node in the XQuery. Also, <tt>attribute()</tt>, <tt>comment()</tt> and <tt>processing-instruction()</tt> will be sent to MarkLogic wrapped in a dummy document element.
+Most of the XDM atomic and node types are supported (including maps and arrays), though there might be some unsupported ones or restrictions of usage.
+For instance, an <tt>empty-sequence()</tt> is sent as a <tt>xs:anyAtomicType("")</tt> to MarkLogic and thus cannot be casted as a node in the XQuery.
+Also, <tt>attribute()</tt>, <tt>comment()</tt> and <tt>processing-instruction()</tt> will be sent to MarkLogic wrapped in a dummy document element.
+If you want to pass multiple atomic values, use an <tt>array</tt>. For multiple nodes, wrap them inside a dummy <tt>element()</tt>.
 
 Example :
 
