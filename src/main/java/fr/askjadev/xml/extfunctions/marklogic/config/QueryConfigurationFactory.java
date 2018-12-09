@@ -59,7 +59,7 @@ public class QueryConfigurationFactory {
                     }
                 }
                 catch (XPathException | ClassCastException ex) {
-                    throw new XPathException("Some configuration entries are not in the required type; see: " + ex.getMessage());
+                    throw new XPathException("The value of the configuration property '" + k + "' is not a member of the expected datatype; see the type casting exception: " + ex.getMessage());
                 }
             }
             if (config.getServer() == null ||
