@@ -39,6 +39,7 @@ import net.sf.saxon.type.Type;
 
 /**
  * Utility class MarkLogicSequenceIterator / Query result iterator
+ *
  * @author Axel Court
  */
 public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseable {
@@ -49,6 +50,16 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
     private final DatabaseClient session;
     private Integer resultCount;
     private boolean closed = false;
+
+    public MarkLogicSequenceIterator(EvalResultIterator result, DocumentBuilder builder, XPathContext xpc) {
+        super();
+        this.result = result;
+        this.builder = builder;
+        this.xpathContext = xpc;
+        this.session = null;
+        this.resultCount = 0;
+
+    }
 
     public MarkLogicSequenceIterator(EvalResultIterator result, DocumentBuilder builder, XPathContext xpc, DatabaseClient session) {
         super();
@@ -73,8 +84,7 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
             Item item = xdmValue.getUnderlyingValue().head();
             // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, Type.displayTypeName(item));
             return item;
-        }
-        else {
+        } else {
             close();
             return null;
         }
@@ -90,7 +100,9 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
             // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, "Closing sequence iterator.");
             closed = true;
             result.close();
-            session.release();
+            if (session != null) {
+                session.release();
+            }
         } catch (Exception ex) {
             Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -100,5 +112,5 @@ public class MarkLogicSequenceIterator implements SequenceIterator, AutoCloseabl
     public int getProperties() {
         return 0;
     }
-	
+
 }

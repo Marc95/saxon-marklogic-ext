@@ -23,24 +23,15 @@
  */
 package fr.askjadev.xml.extfunctions.marklogic;
 
-import fr.askjadev.xml.extfunctions.marklogic.result.MarkLogicSequenceIterator;
+import fr.askjadev.xml.extfunctions.marklogic.utils.DatabaseUtils;
+import fr.askjadev.xml.extfunctions.marklogic.utils.XQueryUtils;
 import com.marklogic.client.DatabaseClient;
-import com.marklogic.client.DatabaseClientFactory;
 import com.marklogic.client.FailedRequestException;
 import com.marklogic.client.ForbiddenUserException;
-import com.marklogic.client.eval.EvalResultIterator;
 import com.marklogic.client.eval.ServerEvaluationCall;
-import com.marklogic.client.io.Format;
 import com.marklogic.client.io.InputStreamHandle;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfiguration;
 import fr.askjadev.xml.extfunctions.marklogic.config.QueryConfigurationFactory;
-import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVar;
-import fr.askjadev.xml.extfunctions.marklogic.var.QueryExternalVarFactory;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.sf.saxon.expr.Expression;
@@ -48,7 +39,7 @@ import net.sf.saxon.expr.StaticContext;
 import net.sf.saxon.expr.XPathContext;
 import net.sf.saxon.lib.ExtensionFunctionCall;
 import net.sf.saxon.lib.ExtensionFunctionDefinition;
-import net.sf.saxon.lib.StandardUnparsedTextResolver;
+import net.sf.saxon.ma.map.HashTrieMap;
 import net.sf.saxon.ma.map.MapType;
 import net.sf.saxon.om.*;
 import net.sf.saxon.s9api.DocumentBuilder;
@@ -56,8 +47,6 @@ import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.trans.XPathException;
 import net.sf.saxon.value.SequenceType;
 import net.sf.saxon.value.StringValue;
-import org.apache.commons.io.input.ReaderInputStream;
-import org.apache.http.client.utils.URIUtils;
 
 /**
  * Abstract class representing a Saxon MarkLogic extension function
@@ -109,7 +98,7 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                 Processor proc = new Processor(xpc.getConfiguration());
                 DatabaseClient session = null;
                 try {
-                    session = createMarkLogicClient(config);
+                    session = DatabaseUtils.createMarkLogicClient(config);
                     // Eval query and get result
                     DocumentBuilder builder = proc.newDocumentBuilder();
                     ServerEvaluationCall call = session.newServerEval();
@@ -122,15 +111,20 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
                             break;
                         case XQUERY_URI:
                             // Read the XQuery and send it as an InputStreamHandle
-                            InputStreamHandle xquery = getXQueryFromURI(xpc, moduleOrQuery);
+                            InputStreamHandle xquery = XQueryUtils.getXQueryFromURI(xpc, moduleOrQuery, staticBaseUri);
                             call.xquery(xquery);
                             xquery.close();
                             break;
                     }
-                    call = addExternalVariables(call, xpc, proc, args);
-                    EvalResultIterator result = call.eval();
-                    MarkLogicSequenceIterator it = new MarkLogicSequenceIterator(result, builder, xpc, session);
-                    return new LazySequence(it);
+                    if (args.length == 3) {
+                    	try {
+                    		call = DatabaseUtils.addExternalVariables(call, xpc, proc, (HashTrieMap) args[2].head());
+                    	}
+                    	catch (ClassCastException ex) {
+                            throw new XPathException("The 3d argument must be an XPath 3.0 map defining the query external variables.");
+                        }
+                    }
+                    return DatabaseUtils.getQueryResult(call, builder, xpc);
                 }
                 catch (FailedRequestException | ForbiddenUserException ex) {
                     throw new XPathException(ex);
@@ -146,64 +140,11 @@ public abstract class AbstractMLExtensionFunction extends ExtensionFunctionDefin
         };
     
     }
-
-    private DatabaseClient createMarkLogicClient(QueryConfiguration config) {
-        DatabaseClientFactory.SecurityContext authContext;
-        switch (config.getAuthentication()) {
-            case "digest":
-                authContext = new DatabaseClientFactory.DigestAuthContext(config.getUser(), config.getPassword());
-                break;
-            default:
-                authContext = new DatabaseClientFactory.BasicAuthContext(config.getUser(), config.getPassword());
-        }
-        // Init session
-        final DatabaseClient session;
-        if (!(config.getDatabase() == null)) {
-            session = DatabaseClientFactory.newClient(config.getServer(), config.getPort(), config.getDatabase(), authContext);
-        } else {
-            session = DatabaseClientFactory.newClient(config.getServer(), config.getPort(), authContext);
-        }
-        return session;
-    }
     
     private String getXQueryOrModule(Sequence [] args) throws XPathException {
         // May be a reference to a module, the URI to a local XQuery or a string containing the XQuery
         String xqueryOrModule = ((StringValue) args[0].head()).getStringValue();
         return xqueryOrModule;
-    }
-    
-    private InputStreamHandle getXQueryFromURI(XPathContext xpc, String queryUri) throws XPathException {
-        try {
-            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, queryUri);
-            // Resolve the XQuery URI if it is relative
-            URI queryUriResolved = URIUtils.resolve(new URI(staticBaseUri), queryUri);
-            // Logger.getLogger(AbstractMLExtensionFunction.class.getName()).log(Level.INFO, queryUriResolved.toString());
-            // Try to detect early when the URL points to nothing -> otherwise there can be a NullPointerException raised by StandardUnparsedTextResolver.connect()
-            if (queryUriResolved.toURL().openConnection().getInputStream() == null) {
-                throw new IOException("File not found: " + queryUriResolved.toString());
-            }
-            // Get the XQuery content as unparsed text using Saxon convenient StandardUnparsedTextResolver class (Reader -> InputStream -> InputStreamHandle)
-            StandardUnparsedTextResolver unparsedTextResolver = new StandardUnparsedTextResolver();
-            InputStreamHandle xquery = new InputStreamHandle(new ReaderInputStream(unparsedTextResolver.resolve(queryUriResolved, "UTF-8", xpc.getConfiguration()), "UTF-8"));
-            xquery.setFormat(Format.TEXT);
-            return xquery;
-        }
-        catch (URISyntaxException | IOException | XPathException ex) {
-            throw new XPathException("Error while trying to load the XQuery file: " + queryUri + "; see: " + ex.getMessage());
-        }
-    }
-    
-    private ServerEvaluationCall addExternalVariables(ServerEvaluationCall call, XPathContext xpc, Processor proc, Sequence[] args) throws XPathException {
-        if (args.length == 3) {
-            QueryExternalVarFactory varFactory = new QueryExternalVarFactory(proc, xpc);
-            ArrayList<QueryExternalVar> externalVars = varFactory.getExternalVariables(args);
-            Iterator<QueryExternalVar> it = externalVars.iterator();
-            while (it.hasNext()) {
-                QueryExternalVar var = it.next();
-                call = var.addToCall(call);
-            }
-        }
-        return call;
     }
 
 }
